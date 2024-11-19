@@ -1,1 +1,3 @@
 # Covariate-Shift-Methods
+
+Covariate Shift, topic of a open lacture for Brownbag seminar...
