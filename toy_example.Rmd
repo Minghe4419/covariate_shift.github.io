@@ -84,3 +84,4 @@ ggplot(data_combined, aes(x = value, fill = Dataset)) +
 
 ```
 
+Here we generate source and target datasets containing 3 input variables `Age`, `BMI`, `BP` and binary output variable `Diabetes`(only in source data). __We are not sure if all methods can be applied to this toy example due to their difference in assumptions and goals...__
