@@ -1,0 +1,86 @@
+---
+title: "toy_example"
+author: "Minghe Wang"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load necessary libraries
+library(MASS)       # For mvrnorm
+library(ggplot2)    # For visualization
+library(kernlab)    # For kernel methods
+library(quadprog)   # For quadratic programming
+library(densratio)  # For KLIEP and LSIF methods
+library(mgcv)       # For semi-parametric modeling
+library(reshape2)
+
+# Set seed for reproducibility
+set.seed(123)
+```
+
+# Diabete Dataset
+
+```{r data_generating}
+
+# Sample sizes
+n_source <- 500
+n_target <- 500
+
+# True coefficients for diabetes risk
+beta_0 <- -10
+beta_1 <- 0.05  # Age coefficient
+beta_2 <- 0.2   # BMI coefficient
+beta_3 <- 0.03  # BP coefficient
+
+# Generate Source Data (Age 30-50)
+age_source <- runif(n_source, min = 30, max = 50)
+bmi_source <- rnorm(n_source, mean = 25, sd = 3)
+bp_source <- rnorm(n_source, mean = 120, sd = 10)
+
+# Compute probability of diabetes
+logit_p_source <- beta_0 + beta_1 * age_source + beta_2 * bmi_source + beta_3 * bp_source
+p_diabetes_source <- 1 / (1 + exp(-logit_p_source))
+
+# Assign diabetes status
+diabetes_source <- rbinom(n_source, size = 1, prob = p_diabetes_source)
+
+# Create source data frame
+data_source <- data.frame(
+  Age = age_source,
+  BMI = bmi_source,
+  BP = bp_source,
+  Diabetes = diabetes_source
+)
+head(data_source)
+
+# Generate Target Data (Age 50-70)
+age_target <- runif(n_target, min = 50, max = 70)
+bmi_target <- rnorm(n_target, mean = 28, sd = 4)
+bp_target <- rnorm(n_target, mean = 130, sd = 12)
+
+# Create target data frame (Diabetes status unknown)
+data_target <- data.frame(
+  Age = age_target,
+  BMI = bmi_target,
+  BP = bp_target
+)
+head(data_target)
+
+# Visualize distributions
+data_source_melt <- melt(data_source[, c('Age', 'BMI', 'BP')])
+data_target_melt <- melt(data_target[, c('Age', 'BMI', 'BP')])
+
+data_source_melt$Dataset <- 'Source'
+data_target_melt$Dataset <- 'Target'
+
+data_combined <- rbind(data_source_melt, data_target_melt)
+
+ggplot(data_combined, aes(x = value, fill = Dataset)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~variable, scales = 'free') +
+  labs(title = 'Feature Distributions in Source and Target Datasets')
+
+```
+
