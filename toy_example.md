@@ -3,102 +3,114 @@ toy_example
 Minghe Wang
 2024-11-21
 
-# Diabete Dataset
-
 ``` r
-# Sample sizes
+# Sample size
 n_source <- 500
-n_target <- 500
+n_target <- 200
 
-# True coefficients for diabetes risk
-beta_0 <- -10
-beta_1 <- 0.05  # Age coefficient
-beta_2 <- 0.2   # BMI coefficient
-beta_3 <- 0.03  # BP coefficient
+# Source domain: X ~ N(0, 1)
+X_source <- rnorm(n_source, mean = 0, sd = 1)
 
-# Generate Source Data (Age 30-50)
-age_source <- runif(n_source, min = 30, max = 50)
-bmi_source <- rnorm(n_source, mean = 25, sd = 3)
-bp_source <- rnorm(n_source, mean = 120, sd = 10)
+# Target domain: X ~ N(2, 1)
+X_target <- rnorm(n_target, mean = 2, sd = 1)
 
-# Compute probability of diabetes
-logit_p_source <- beta_0 + beta_1 * age_source + beta_2 * bmi_source + beta_3 * bp_source
-p_diabetes_source <- 1 / (1 + exp(-logit_p_source))
+# Conditional distribution: Y = 3X + epsilon, epsilon ~ N(0, 1)
+epsilon_source <- rnorm(n_source, mean = 0, sd = 1)
+epsilon_target <- rnorm(n_target, mean = 0, sd = 1)
 
-# Assign diabetes status
-diabetes_source <- rbinom(n_source, size = 1, prob = p_diabetes_source)
+Y_source <- 3 * X_source + epsilon_source
+Y_target <- 3 * X_target + epsilon_target
 
-# Create source data frame
-data_source <- data.frame(
-  Age = age_source,
-  BMI = bmi_source,
-  BP = bp_source,
-  Diabetes = diabetes_source
+# Combine into data frames
+source_data <- data.frame(X = X_source, Y = Y_source, Domain = "Source")
+target_data <- data.frame(X = X_target, Y = Y_target, Domain = "Target")
+
+# 2. Estimate Densities Separately using KDE
+# Estimate P_source(X) and P_target(X)
+kde_source <- kdensity(source_data$X, kernel = "gaussian", bw = "nrd0")
+kde_target <- kdensity(target_data$X, kernel = "gaussian", bw = "nrd0")
+
+# Evaluate densities at source data points
+p_source <- kde_source(source_data$X)
+p_target <- kde_target(source_data$X)
+
+# 3. Compute Density Ratios (Weights)
+# Avoid division by zero
+epsilon <- 1e-10
+weights <- p_target / (p_source + epsilon)
+
+# 4. Reweight the Source Data
+source_data$weight <- weights
+
+# 5. Estimate Target Parameter without Reweighting
+model_unweighted <- lm(Y ~ X, data = source_data)
+coef_unweighted <- coef(model_unweighted)
+
+# 6. Estimate Target Parameter with Reweighting
+model_weighted <- lm(Y ~ X, data = source_data, weights = source_data$weight)
+coef_weighted <- coef(model_weighted)
+
+# 7. True Target Parameter
+model_target <- lm(Y ~ X, data = target_data)
+coef_target <- coef(model_target)
+
+# 8. Compare the Estimates
+estimates <- data.frame(
+  Model = c("Unweighted Source", "Weighted Source", "True Target"),
+  Intercept = c(coef_unweighted[1], coef_weighted[1], coef_target[1]),
+  Slope = c(coef_unweighted[2], coef_weighted[2], coef_target[2])
 )
-head(data_source)
+
+print(estimates)
 ```
 
-    ##        Age      BMI       BP Diabetes
-    ## 1 35.75155 23.87319 135.3843        0
-    ## 2 45.76610 23.31437 118.9029        0
-    ## 3 38.17954 23.96825 125.1147        0
-    ## 4 47.66035 25.27149 122.1396        1
-    ## 5 48.80935 29.79553 118.1388        1
-    ## 6 30.91113 24.73430 118.7961        1
+    ##               Model   Intercept    Slope
+    ## 1 Unweighted Source  0.05298303 3.093207
+    ## 2   Weighted Source  0.37596375 2.833476
+    ## 3       True Target -0.17205481 3.073885
 
 ``` r
-# Generate Target Data (Age 50-70)
-age_target <- runif(n_target, min = 50, max = 70)
-bmi_target <- rnorm(n_target, mean = 28, sd = 4)
-bp_target <- rnorm(n_target, mean = 130, sd = 12)
+# 9. Visualization
 
-# Create target data frame (Diabetes status unknown)
-data_target <- data.frame(
-  Age = age_target,
-  BMI = bmi_target,
-  BP = bp_target
-)
-head(data_target)
+# Density Plots of X in Source and Target Domains
+density_plot <- ggplot() +
+  geom_density(data = source_data, aes(x = X, color = "Source"), size = 1) +
+  geom_density(data = target_data, aes(x = X, color = "Target"), size = 1) +
+  labs(title = "Density Plot of X in Source and Target Domains",
+       x = "X", y = "Density") +
+  scale_color_manual(values = c("Source" = "blue", "Target" = "red")) +
+  theme_minimal()
 ```
 
-    ##        Age      BMI       BP
-    ## 1 54.11654 25.19398 114.9600
-    ## 2 68.85078 31.52894 128.6640
-    ## 3 57.58648 27.46652 113.0462
-    ## 4 62.52480 23.51729 106.2046
-    ## 5 53.67005 29.84477 139.4031
-    ## 6 63.18415 34.09657 140.8104
+    ## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+    ## ℹ Please use `linewidth` instead.
+    ## This warning is displayed once every 8 hours.
+    ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+    ## generated.
 
 ``` r
-# Visualize distributions
-data_source_melt <- melt(data_source[, c('Age', 'BMI', 'BP')])
+# Weights vs. X Plot
+weights_plot <- ggplot(source_data, aes(x = X, y = weight)) +
+  geom_point(alpha = 0.7) +
+  labs(title = "Weights Computed from Density Ratios",
+       x = "X (Source Domain)",
+       y = "Weight") +
+  theme_minimal()
+
+# Regression Lines Plot
+regression_plot <- ggplot() +
+  geom_point(data = target_data, aes(x = X, y = Y, color = "Target Data"), alpha = 0.5) +
+  geom_point(data = source_data, aes(x = X, y = Y, color = "Source Data"), alpha = 0.5) +
+  geom_abline(intercept = coef_unweighted[1], slope = coef_unweighted[2], color = "green", linetype = "dashed", size = 1.2, show.legend = TRUE) +
+  geom_abline(intercept = coef_weighted[1], slope = coef_weighted[2], color = "purple", linetype = "dashed", size = 1.2, show.legend = TRUE) +
+  geom_abline(intercept = coef_target[1], slope = coef_target[2], color = "red", linetype = "solid", size = 1.2, show.legend = TRUE) +
+  labs(title = "Regression Lines: Unweighted vs. Weighted vs. True Target",
+       x = "X",
+       y = "Y") +
+  scale_color_manual(values = c("Source Data" = "blue", "Target Data" = "red"))
+
+# Arrange plots
+grid.arrange(density_plot, weights_plot, regression_plot, ncol = 1)
 ```
 
-    ## No id variables; using all as measure variables
-
-``` r
-data_target_melt <- melt(data_target[, c('Age', 'BMI', 'BP')])
-```
-
-    ## No id variables; using all as measure variables
-
-``` r
-data_source_melt$Dataset <- 'Source'
-data_target_melt$Dataset <- 'Target'
-
-data_combined <- rbind(data_source_melt, data_target_melt)
-
-ggplot(data_combined, aes(x = value, fill = Dataset)) +
-  geom_density(alpha = 0.5) +
-  facet_wrap(~variable, scales = 'free') +
-  labs(title = 'Feature Distributions in Source and Target Datasets')
-```
-
-![](toy_example_files/figure-gfm/data_generating-1.png)<!-- -->
-
-Here we generate source and target datasets containing 3 input variables
-`Age`, `BMI`, `BP` and binary output variable `Diabetes`(only in source
-data). **We are not sure if all methods can be applied to this toy
-example due to their difference in assumptions and goals…**
-
-# Separate density estimation
+![](toy_example_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->

@@ -8,83 +8,114 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-# Load necessary libraries
-library(MASS)       # For mvrnorm
-library(ggplot2)    # For visualization
-library(kernlab)    # For kernel methods
-library(quadprog)   # For quadratic programming
-library(densratio)  # For KLIEP and LSIF methods
-library(mgcv)       # For semi-parametric modeling
-library(reshape2)
 
-# Set seed for reproducibility
+# Load necessary libraries
+library(ggplot2)    # For plotting
+library(kdensity)   # For Kernel Density Estimation
+library(dplyr)      # For data manipulation
+library(gridExtra)  # For arranging multiple plots
+
+# 1. Simulate Source and Target Data under Covariate Shift
 set.seed(123)
 ```
 
-# Diabete Dataset
 
-```{r data_generating}
 
-# Sample sizes
+```{r}
+# Sample size
 n_source <- 500
-n_target <- 500
+n_target <- 200
 
-# True coefficients for diabetes risk
-beta_0 <- -10
-beta_1 <- 0.05  # Age coefficient
-beta_2 <- 0.2   # BMI coefficient
-beta_3 <- 0.03  # BP coefficient
+# Source domain: X ~ N(0, 1)
+X_source <- rnorm(n_source, mean = 0, sd = 1)
 
-# Generate Source Data (Age 30-50)
-age_source <- runif(n_source, min = 30, max = 50)
-bmi_source <- rnorm(n_source, mean = 25, sd = 3)
-bp_source <- rnorm(n_source, mean = 120, sd = 10)
+# Target domain: X ~ N(2, 1)
+X_target <- rnorm(n_target, mean = 2, sd = 1)
 
-# Compute probability of diabetes
-logit_p_source <- beta_0 + beta_1 * age_source + beta_2 * bmi_source + beta_3 * bp_source
-p_diabetes_source <- 1 / (1 + exp(-logit_p_source))
+# Conditional distribution: Y = 3X + epsilon, epsilon ~ N(0, 1)
+epsilon_source <- rnorm(n_source, mean = 0, sd = 1)
+epsilon_target <- rnorm(n_target, mean = 0, sd = 1)
 
-# Assign diabetes status
-diabetes_source <- rbinom(n_source, size = 1, prob = p_diabetes_source)
+Y_source <- 3 * X_source + epsilon_source
+Y_target <- 3 * X_target + epsilon_target
 
-# Create source data frame
-data_source <- data.frame(
-  Age = age_source,
-  BMI = bmi_source,
-  BP = bp_source,
-  Diabetes = diabetes_source
+# Combine into data frames
+source_data <- data.frame(X = X_source, Y = Y_source, Domain = "Source")
+target_data <- data.frame(X = X_target, Y = Y_target, Domain = "Target")
+
+# 2. Estimate Densities Separately using KDE
+# Estimate P_source(X) and P_target(X)
+kde_source <- kdensity(source_data$X, kernel = "gaussian", bw = "nrd0")
+kde_target <- kdensity(target_data$X, kernel = "gaussian", bw = "nrd0")
+
+# Evaluate densities at source data points
+p_source <- kde_source(source_data$X)
+p_target <- kde_target(source_data$X)
+
+# 3. Compute Density Ratios (Weights)
+# Avoid division by zero
+epsilon <- 1e-10
+weights <- p_target / (p_source + epsilon)
+
+# 4. Reweight the Source Data
+source_data$weight <- weights
+
+# 5. Estimate Target Parameter without Reweighting
+model_unweighted <- lm(Y ~ X, data = source_data)
+coef_unweighted <- coef(model_unweighted)
+
+# 6. Estimate Target Parameter with Reweighting
+model_weighted <- lm(Y ~ X, data = source_data, weights = source_data$weight)
+coef_weighted <- coef(model_weighted)
+
+# 7. True Target Parameter
+model_target <- lm(Y ~ X, data = target_data)
+coef_target <- coef(model_target)
+
+# 8. Compare the Estimates
+estimates <- data.frame(
+  Model = c("Unweighted Source", "Weighted Source", "True Target"),
+  Intercept = c(coef_unweighted[1], coef_weighted[1], coef_target[1]),
+  Slope = c(coef_unweighted[2], coef_weighted[2], coef_target[2])
 )
-head(data_source)
 
-# Generate Target Data (Age 50-70)
-age_target <- runif(n_target, min = 50, max = 70)
-bmi_target <- rnorm(n_target, mean = 28, sd = 4)
-bp_target <- rnorm(n_target, mean = 130, sd = 12)
+print(estimates)
 
-# Create target data frame (Diabetes status unknown)
-data_target <- data.frame(
-  Age = age_target,
-  BMI = bmi_target,
-  BP = bp_target
-)
-head(data_target)
+# 9. Visualization
 
-# Visualize distributions
-data_source_melt <- melt(data_source[, c('Age', 'BMI', 'BP')])
-data_target_melt <- melt(data_target[, c('Age', 'BMI', 'BP')])
+# Density Plots of X in Source and Target Domains
+density_plot <- ggplot() +
+  geom_density(data = source_data, aes(x = X, color = "Source"), size = 1) +
+  geom_density(data = target_data, aes(x = X, color = "Target"), size = 1) +
+  labs(title = "Density Plot of X in Source and Target Domains",
+       x = "X", y = "Density") +
+  scale_color_manual(values = c("Source" = "blue", "Target" = "red")) +
+  theme_minimal()
 
-data_source_melt$Dataset <- 'Source'
-data_target_melt$Dataset <- 'Target'
+# Weights vs. X Plot
+weights_plot <- ggplot(source_data, aes(x = X, y = weight)) +
+  geom_point(alpha = 0.7) +
+  labs(title = "Weights Computed from Density Ratios",
+       x = "X (Source Domain)",
+       y = "Weight") +
+  theme_minimal()
 
-data_combined <- rbind(data_source_melt, data_target_melt)
+# Regression Lines Plot
+regression_plot <- ggplot() +
+  geom_point(data = target_data, aes(x = X, y = Y, color = "Target Data"), alpha = 0.5) +
+  geom_point(data = source_data, aes(x = X, y = Y, color = "Source Data"), alpha = 0.5) +
+  geom_abline(intercept = coef_unweighted[1], slope = coef_unweighted[2], color = "green", linetype = "dashed", size = 1.2, show.legend = TRUE) +
+  geom_abline(intercept = coef_weighted[1], slope = coef_weighted[2], color = "purple", linetype = "dashed", size = 1.2, show.legend = TRUE) +
+  geom_abline(intercept = coef_target[1], slope = coef_target[2], color = "red", linetype = "solid", size = 1.2, show.legend = TRUE) +
+  labs(title = "Regression Lines: Unweighted vs. Weighted vs. True Target",
+       x = "X",
+       y = "Y") +
+  scale_color_manual(values = c("Source Data" = "blue", "Target Data" = "red"))
 
-ggplot(data_combined, aes(x = value, fill = Dataset)) +
-  geom_density(alpha = 0.5) +
-  facet_wrap(~variable, scales = 'free') +
-  labs(title = 'Feature Distributions in Source and Target Datasets')
+# Arrange plots
+grid.arrange(density_plot, weights_plot, regression_plot, ncol = 1)
 
 ```
 
-Here we generate source and target datasets containing 3 input variables `Age`, `BMI`, `BP` and binary output variable `Diabetes`(only in source data). __We are not sure if all methods can be applied to this toy example due to their difference in assumptions and goals...__
 
-# Separate density estimation
+
