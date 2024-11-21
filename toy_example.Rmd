@@ -1,12 +1,9 @@
 ---
 title: "toy_example"
-#author: "Minghe Wang"
-#date: "`r Sys.Date()`"
+author: "Minghe Wang"
+date: "`r Sys.Date()`"
 output: 
-  html_document:
-    toc: true
-    toc_float: true
-    theme: cerulean
+  github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -90,4 +87,4 @@ ggplot(data_combined, aes(x = value, fill = Dataset)) +
 
 Here we generate source and target datasets containing 3 input variables `Age`, `BMI`, `BP` and binary output variable `Diabetes`(only in source data). __We are not sure if all methods can be applied to this toy example due to their difference in assumptions and goals...__
 
-# Separate deinsity estimation
+# Separate density estimation
