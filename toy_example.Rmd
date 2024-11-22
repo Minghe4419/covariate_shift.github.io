@@ -225,6 +225,7 @@ grid.arrange(
 
 
 ```
+
 # Non-parametric KDE
 
 When generating data:

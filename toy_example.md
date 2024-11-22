@@ -250,8 +250,9 @@ grid.arrange(
 )
 ```
 
-![](toy_example_files/figure-gfm/unnamed-chunk-1-1.png)<!-- --> \#
-Non-parametric KDE
+![](toy_example_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
+# Non-parametric KDE
 
 When generating data:
 
