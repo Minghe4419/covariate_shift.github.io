@@ -17,13 +17,12 @@ library(gridExtra)  # For arranging multiple plots
 library(reshape2)     # For data manipulation
 library(philentropy)  # For KL divergence (optional)
 library(MASS)
-# 1. Simulate Source and Target Data under Covariate Shift
-set.seed(123)
 ```
 
 # Parametric MLE 
 
 ```{r}
+set.seed(123)
 # 1. Simulate Source and Target Data
 n_source <- 500      # Number of source samples
 n_target <- 200      # Number of target samples
@@ -249,7 +248,7 @@ X_source <- ifelse(source_component == 1,
 
 # Target domain: Skewed distribution
 # Using a Gamma distribution shifted to have similar range as source
-X_target <- rgamma(n_target, shape = 2, scale = 1) - 2  # Shift to center around 0
+X_target <- rgamma(n_target, shape = 2, scale = 1)
 
 # Conditional distribution: Y = 3X + epsilon, epsilon ~ N(0, 1)
 epsilon_source <- rnorm(n_source, mean = 0, sd = 1)

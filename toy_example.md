@@ -1,11 +1,12 @@
 toy_example
 ================
 Minghe Wang
-2024-11-21
+2024-11-22
 
 # Parametric MLE
 
 ``` r
+set.seed(123)
 # 1. Simulate Source and Target Data
 n_source <- 500      # Number of source samples
 n_target <- 200      # Number of target samples
@@ -278,7 +279,7 @@ X_source <- ifelse(source_component == 1,
 
 # Target domain: Skewed distribution
 # Using a Gamma distribution shifted to have similar range as source
-X_target <- rgamma(n_target, shape = 2, scale = 1) - 2  # Shift to center around 0
+X_target <- rgamma(n_target, shape = 2, scale = 1)
 
 # Conditional distribution: Y = 3X + epsilon, epsilon ~ N(0, 1)
 epsilon_source <- rnorm(n_source, mean = 0, sd = 1)
@@ -332,8 +333,8 @@ print(estimates)
 
     ##               Model Intercept  Slope
     ## 1 Unweighted Source   -0.0143 3.0382
-    ## 2   Weighted Source    0.0250 3.0560
-    ## 3       True Target   -0.0232 3.1165
+    ## 2   Weighted Source    0.3163 2.8921
+    ## 3       True Target   -0.2562 3.1165
 
 ``` r
 # 9. Make Predictions on Target Data Using Both Models
@@ -354,8 +355,8 @@ print(performance)
 ```
 
     ##               Model    MSE
-    ## 1 Unweighted Source 0.9862
-    ## 2   Weighted Source 0.9846
+    ## 1 Unweighted Source 0.9936
+    ## 2   Weighted Source 1.0735
     ## 3       True Target 0.9763
 
 ``` r
