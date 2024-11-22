@@ -137,6 +137,12 @@ print(performance)
     ## 3       True Target 0.9307
 
 ``` r
+print("The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator")
+```
+
+    ## [1] "The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator"
+
+``` r
 # 11. Visualization
 
 
@@ -358,6 +364,12 @@ print(performance)
     ## 1 Unweighted Source 0.9936
     ## 2   Weighted Source 1.0735
     ## 3       True Target 0.9763
+
+``` r
+print("The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator")
+```
+
+    ## [1] "The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator"
 
 ``` r
 # 11. Visualization

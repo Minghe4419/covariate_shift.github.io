@@ -114,7 +114,7 @@ performance <- data.frame(
 )
 
 print(performance)
-
+print("The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator")
 # 11. Visualization
 
 
@@ -220,9 +220,6 @@ grid.arrange(
   ncol = 2
 )
 
-
-
-
 ```
 
 # Non-parametric KDE
@@ -314,7 +311,7 @@ performance <- data.frame(
 )
 
 print(performance)
-
+print("The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator")
 # 11. Visualization
 
 # a. Density Plots of X in Source and Target Domains
