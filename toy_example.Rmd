@@ -133,8 +133,7 @@ density_plot <- ggplot() +
       face = "bold",
       hjust = 0.5
     ),
-    legend.title = element_blank(),
-    legend.position = "top"
+    legend.title = element_blank()
   )
 
 # b. Weights vs. X Plot
@@ -149,8 +148,7 @@ weights_plot <- ggplot(source_data, aes(x = X, y = weight)) +
       size = 10,         # Adjusted size for better visibility
       face = "bold",
       hjust = 0.5
-    ),
-    legend.position = "none"
+    )
   )
 
 # c. Regression Lines Plot
@@ -178,8 +176,7 @@ regression_plot <- ggplot() +
       face = "bold",
       hjust = 0.5
     ),
-    legend.title = element_blank(),
-    legend.position = "top"
+    legend.title = element_blank()
   )
 
 # d. Density Plot of Predictions vs. True Target
@@ -215,7 +212,6 @@ density_comparison_plot <- ggplot(predictions_melted, aes(x = Y, fill = Model)) 
       hjust = 0.5
     ),
     legend.title = element_blank(),
-    legend.position = "top"
   )
 
 # Arrange the plots in a 2x2 grid
@@ -226,45 +222,7 @@ grid.arrange(
 )
 
 
-# 12. Compute KL Divergence between Prediction Distributions and True Target
 
-compute_KL_manual <- function(pred_density, true_density) {
-  # Ensure no zero values
-  pred_density <- pred_density + 1e-10
-  true_density <- true_density + 1e-10
-  
-  # Normalize to ensure they sum to 1
-  pred_density <- pred_density / sum(pred_density)
-  true_density <- true_density / sum(true_density)
-  
-  # Compute KL divergence
-  kl_div <- sum(pred_density * log2(pred_density / true_density))
-  
-  return(kl_div)
-}
-
-# Estimate densities for predictions and true target
-density_pred_unweighted <- density(pred_unweighted, from = min(target_data$Y), to = max(target_data$Y), n = 512)
-density_pred_weighted <- density(pred_weighted, from = min(target_data$Y), to = max(target_data$Y), n = 512)
-density_true_target <- density(target_data$Y, from = min(target_data$Y), to = max(target_data$Y), n = 512)
-
-# Normalize densities
-density_pred_unweighted_normalized <- density_pred_unweighted$y / sum(density_pred_unweighted$y)
-density_pred_weighted_normalized <- density_pred_weighted$y / sum(density_pred_weighted$y)
-density_true_target_normalized <- density_true_target$y / sum(density_true_target$y)
-
-# Compute KL divergence manually
-kl_unweighted_manual <- compute_KL_manual(density_pred_unweighted_normalized, density_true_target_normalized)
-kl_weighted_manual <- compute_KL_manual(density_pred_weighted_normalized, density_true_target_normalized)
-
-# Compile KL divergence results
-kl_results_manual <- data.frame(
-  Model = c("Unweighted Source", "Weighted Source"),
-  KL_Divergence = round(c(kl_unweighted_manual, kl_weighted_manual), 4)
-)
-
-print("KL Divergence computed manually:")
-print(kl_results_manual)
 
 ```
 # Non-parametric KDE
