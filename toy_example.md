@@ -8,8 +8,8 @@ Minghe Wang
 ``` r
 set.seed(123)
 # 1. Simulate Source and Target Data
-n_source <- 500      # Number of source samples
-n_target <- 200      # Number of target samples
+n_source <- 1000      # Number of source samples
+n_target <- 400      # Number of target samples
 
 # Source domain: X ~ N(0, 1)
 X_source <- rnorm(n_source, mean = 0, sd = 1)
@@ -52,8 +52,8 @@ print(fit_source_gaussian)
 ```
 
     ##       mean          sd    
-    ##   0.03459045   0.97179613 
-    ##  (0.04346004) (0.03073089)
+    ##   0.01612787   0.99119900 
+    ##  (0.03134446) (0.02216388)
 
 ``` r
 cat("\nTarget Gaussian Parameters (MLE):\n")
@@ -67,8 +67,20 @@ print(fit_target_gaussian)
 ```
 
     ##       mean          sd    
-    ##   1.90402795   0.98103458 
-    ##  (0.06936962) (0.04905173)
+    ##   2.00950362   0.99379851 
+    ##  (0.04968993) (0.03513608)
+
+``` r
+print(mean(source_data$X))
+```
+
+    ## [1] 0.01612787
+
+``` r
+print(sd(source_data$X))
+```
+
+    ## [1] 0.991695
 
 ``` r
 # 3. Compute Density Ratios (Weights)
@@ -109,9 +121,9 @@ print(estimates)
 ```
 
     ##               Model Intercept  Slope
-    ## 1 Unweighted Source    0.0530 3.0932
-    ## 2   Weighted Source    0.5380 2.7420
-    ## 3       True Target   -0.1721 3.0739
+    ## 1 Unweighted Source    0.0101 3.0201
+    ## 2   Weighted Source   -0.0421 3.0240
+    ## 3       True Target    0.0390 2.9728
 
 ``` r
 # 9. Make Predictions on Target Data Using Both Models
@@ -132,9 +144,9 @@ print(performance)
 ```
 
     ##               Model    MSE
-    ## 1 Unweighted Source 0.9996
-    ## 2   Weighted Source 1.0428
-    ## 3       True Target 0.9307
+    ## 1 Unweighted Source 0.9788
+    ## 2   Weighted Source 0.9752
+    ## 3       True Target 0.9722
 
 ``` r
 print("The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator")
@@ -156,7 +168,7 @@ density_plot <- ggplot() +
   theme_minimal() +
   theme(
     plot.title = element_text(
-      size = 10,         # Adjusted size for better visibility
+      size = 6,         # Adjusted size for better visibility
       face = "bold",
       hjust = 0.5
     ),
@@ -171,19 +183,21 @@ density_plot <- ggplot() +
     ## generated.
 
 ``` r
-# b. Weights vs. X Plot
-weights_plot <- ggplot(source_data, aes(x = X, y = weight)) +
-  geom_point(alpha = 0.7, color = "darkgreen") +
-  labs(title = "Weights Computed from Density Ratios",
-       x = "X (Source Domain)",
-       y = "Weight") +
+# b. Weighted Density Plot of X in Source and Target Domains
+weighted_density_plot <- ggplot() +
+  geom_density(data = source_data, aes(x = X, weight = weight/sum(weight), color = "Weighted Source"), size = 1) + #normalize weights to ensures the total weight sums to 1
+  geom_density(data = target_data, aes(x = X, color = "Target"), size = 1) +
+  labs(title = "Density Plot of X in Weighted Source and Target Domains",
+       x = "X", y = "Density") +
+  scale_color_manual(values = c("Weighted Source" = "blue", "Target" = "red")) +
   theme_minimal() +
   theme(
     plot.title = element_text(
-      size = 10,         # Adjusted size for better visibility
+      size = 6,         # Adjusted size for better visibility
       face = "bold",
       hjust = 0.5
-    )
+    ),
+    legend.title = element_blank()
   )
 
 # c. Regression Lines Plot
@@ -207,7 +221,7 @@ regression_plot <- ggplot() +
   theme_minimal() +
   theme(
     plot.title = element_text(
-      size = 10,         # Adjusted size for better visibility
+      size = 6,         # Adjusted size for better visibility
       face = "bold",
       hjust = 0.5
     ),
@@ -242,7 +256,7 @@ density_comparison_plot <- ggplot(predictions_melted, aes(x = Y, fill = Model)) 
   theme_minimal() +
   theme(
     plot.title = element_text(
-      size = 10,         # Adjusted size for better visibility
+      size = 6,         # Adjusted size for better visibility
       face = "bold",
       hjust = 0.5
     ),
@@ -251,7 +265,7 @@ density_comparison_plot <- ggplot(predictions_melted, aes(x = Y, fill = Model)) 
 
 # Arrange the plots in a 2x2 grid
 grid.arrange(
-  density_plot, weights_plot, 
+  density_plot, weighted_density_plot, 
   regression_plot, density_comparison_plot, 
   ncol = 2
 )
@@ -273,8 +287,8 @@ When generating data:
 ``` r
 # 1. Simulate Source and Target Data
 set.seed(123)
-n_source <- 500
-n_target <- 200
+n_source <- 1000
+n_target <- 400
 
 # Source domain: Mixture of two Gaussians
 # 50% from N(-2, 0.5^2) and 50% from N(2, 0.5^2)
@@ -338,9 +352,9 @@ print(estimates)
 ```
 
     ##               Model Intercept  Slope
-    ## 1 Unweighted Source   -0.0143 3.0382
-    ## 2   Weighted Source    0.3163 2.8921
-    ## 3       True Target   -0.2562 3.1165
+    ## 1 Unweighted Source   -0.0027 2.9873
+    ## 2   Weighted Source   -0.1125 3.0390
+    ## 3       True Target    0.0420 2.9809
 
 ``` r
 # 9. Make Predictions on Target Data Using Both Models
@@ -361,9 +375,9 @@ print(performance)
 ```
 
     ##               Model    MSE
-    ## 1 Unweighted Source 0.9936
-    ## 2   Weighted Source 1.0735
-    ## 3       True Target 0.9763
+    ## 1 Unweighted Source 0.9966
+    ## 2   Weighted Source 1.0035
+    ## 3       True Target 0.9955
 
 ``` r
 print("The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator")
@@ -384,26 +398,28 @@ density_plot <- ggplot() +
   theme_minimal() +
   theme(
     plot.title = element_text(
-      size = 8,          # Adjusted size
+      size = 6,          # Adjusted size
       face = "bold",
       hjust = 0.5
     ),
     legend.title = element_blank()
   )
 
-# b. Weights vs. X Plot
-weights_plot <- ggplot(source_data, aes(x = X, y = weight)) +
-  geom_point(alpha = 0.7, color = "darkgreen") +
-  labs(title = "Weights Computed from Density Ratios",
-       x = "X (Source Domain)",
-       y = "Weight") +
+# b. Weighted Density Plot of X in Source and Target Domains
+weighted_density_plot <- ggplot() +
+  geom_density(data = source_data, aes(x = X, weight = weight/sum(weight), color = "Weighted Source"), size = 1) + #normalize weights to ensures the total weight sums to 1
+  geom_density(data = target_data, aes(x = X, color = "Target"), size = 1) +
+  labs(title = "Density Plot of X in Weighted Source and Target Domains",
+       x = "X", y = "Density") +
+  scale_color_manual(values = c("Weighted Source" = "blue", "Target" = "red")) +
   theme_minimal() +
   theme(
     plot.title = element_text(
-      size = 8,          # Adjusted size
+      size = 6,         # Adjusted size for better visibility
       face = "bold",
       hjust = 0.5
-    )
+    ),
+    legend.title = element_blank()
   )
 
 # c. Regression Lines Plot
@@ -425,7 +441,7 @@ regression_plot <- ggplot() +
   theme_minimal() +
   theme(
     plot.title = element_text(
-      size = 8,          # Adjusted size
+      size = 6,          # Adjusted size
       face = "bold",
       hjust = 0.5
     ),
@@ -457,7 +473,7 @@ density_comparison_plot <- ggplot(predictions_melted, aes(x = Y, fill = Model)) 
   theme_minimal() +
   theme(
     plot.title = element_text(
-      size = 8,          # Adjusted size
+      size = 6,          # Adjusted size
       face = "bold",
       hjust = 0.5
     )
@@ -466,7 +482,7 @@ density_comparison_plot <- ggplot(predictions_melted, aes(x = Y, fill = Model)) 
 
 # Arrange the plots in a 2x2 grid
 grid.arrange(
-  density_plot, weights_plot, 
+  density_plot, weighted_density_plot, 
   regression_plot, density_comparison_plot, 
   ncol = 2
 )
