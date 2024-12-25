@@ -1,0 +1,19 @@
+---
+title: "Histogram-based Method"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Histogram-based Method
+
+```{r}
+print("use histogram based estimation of distributions")
+```
+
