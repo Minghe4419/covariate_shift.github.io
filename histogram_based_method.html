@@ -16,7 +16,7 @@
 <script src="site_libs/header-attrs-2.28/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/spacelab.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/readable.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -381,13 +381,13 @@ div.tocify {
 </div>
 
 
-<div id="theoretical-background" class="section level3">
-<h3>Theoretical Background</h3>
-<div id="estimator" class="section level4">
-<h4>Estimator:</h4>
+<div id="theoretical-background" class="section level2">
+<h2>Theoretical Background</h2>
+<div id="estimator" class="section level3">
+<h3>Estimator</h3>
 </div>
-<div id="assumptions" class="section level4">
-<h4>Assumptions:</h4>
+<div id="assumptions" class="section level3">
+<h3>Assumptions</h3>
 <ul>
 <li><p>Compact Support: <span
 class="math inline">\(supp(\mathbb{P}^{(1)})\)</span> is compact in
@@ -401,14 +401,340 @@ x&#39;||_{2}^{\beta}\)</span> with <span class="math inline">\(\beta \in
 </ul>
 </div>
 </div>
-<div id="implementation" class="section level3">
-<h3>Implementation</h3>
+<div id="implementation" class="section level2">
+<h2>Implementation</h2>
+<pre class="r"><code>simulate_data &lt;- function(n1 = 1000,   # number of target samples
+                          n0 = 1000,   # number of source samples
+                          d  = 2,      # dimension
+                          seed = 123) {
+  set.seed(seed)
+  
+  # --- Generate Source Data (Mixture of Gaussians) ---
+  p_source &lt;- 0.5  # mixture proportion (50% from component 1, 50% from component 2)
+  
+  # Means for the two components in the source mixture
+  mu_source1 &lt;- rep(0, d)
+  mu_source2 &lt;- rep(3, d)  # shift second component to separate it somewhat
+  
+  # Covariance matrices for the two source components (identity for simplicity)
+  Sigma_source1 &lt;- diag(d)
+  Sigma_source2 &lt;- diag(d)
+  
+  # Allocate memory
+  source_data &lt;- matrix(NA, nrow = n1, ncol = d)
+  
+  # Decide which component each observation belongs to
+  z_source &lt;- rbinom(n1, size = 1, prob = p_source)
+  
+  for (i in seq_len(n1)) {
+    if (z_source[i] == 1) {
+      source_data[i, ] &lt;- mvrnorm(n = 1, mu = mu_source1, Sigma = Sigma_source1)
+    } else {
+      source_data[i, ] &lt;- mvrnorm(n = 1, mu = mu_source2, Sigma = Sigma_source2)
+    }
+  }
+  
+  # --- Generate Target Data (Another Mixture of Gaussians) ---
+  p_target &lt;- 0.7  # mixture proportion for target data
+  mu_target1 &lt;- rep(1,  d)   # slightly different mean
+  mu_target2 &lt;- rep(-2, d)   # negative shift
+  Sigma_target1 &lt;- diag(d) * 0.5  # smaller covariance
+  Sigma_target2 &lt;- diag(d) * 2    # larger covariance
+  
+  # Allocate memory
+  target_data &lt;- matrix(NA, nrow = n0, ncol = d)
+  
+  # Mixture indicator for target distribution
+  z_target &lt;- rbinom(n0, size = 1, prob = p_target)
+  
+  for (i in seq_len(n0)) {
+    if (z_target[i] == 1) {
+      target_data[i, ] &lt;- mvrnorm(n = 1, mu = mu_target1, Sigma = Sigma_target1)
+    } else {
+      target_data[i, ] &lt;- mvrnorm(n = 1, mu = mu_target2, Sigma = Sigma_target2)
+    }
+  }
+  
+  # Return both datasets
+  list(
+    source = source_data,
+    target = target_data
+  )
+}
+
+# Example Usage
+target_sample_n = 800
+source_sample_n = 1000
+dimension = 2
+sim_data &lt;- simulate_data(n1 = source_sample_n, n0 = target_sample_n, d = dimension, seed = 123)
+source_data &lt;- sim_data$source
+target_data &lt;- sim_data$target</code></pre>
+<p>We generate multi-Gaussian distribution to simulate non-parametric
+data. Dimension of data <span class="math inline">\(d\)</span> is 2;
+sample size of target data <span class="math inline">\(n_0\)</span> is
+800; and sample size of source data <span
+class="math inline">\(n_1\)</span> is 1000.</p>
+<pre class="r"><code># Visualize high dimensional data</code></pre>
+<pre class="r"><code>target_sample_n = 800
+source_sample_n = 1000
+min_sample = min(target_sample_n, source_sample_n)
+# Choose parameters
+r = 0.5 # we may use monte-carlo simulation
+alpha = log(target_sample_n) / target_sample_n</code></pre>
 </div>
-<div id="highlights" class="section level3">
-<h3>Highlights</h3>
+<div id="highlights" class="section level2">
+<h2>Highlights</h2>
 </div>
 <div id="references" class="section level2">
 <h2>References</h2>
+</div>
+<div id="code-appendix" class="section level2">
+<h2>Code Appendix</h2>
+<pre class="r"><code># # How to arbitrarily choose r(How the Kpotufe does)
+# # Load necessary libraries
+# 
+# 
+# # Function to compute true density ratio
+# # This needs to be defined based on your data generation process
+# # For example, if both source and target are mixtures of Gaussians:
+# compute_true_density_ratio &lt;- function(x, source_params, target_params) {
+#   # x: matrix of points where to compute the ratio
+#   # source_params and target_params: list containing means and covariances
+#   # Assuming both source and target are mixtures of two Gaussians
+#   
+#   # Source density
+#   p_source &lt;- 0.5 * dmvnorm(x, mean = source_params$mu1, sigma = source_params$sigma1) +
+#               0.5 * dmvnorm(x, mean = source_params$mu2, sigma = source_params$sigma2)
+#   
+#   # Target density
+#   p_target &lt;- 0.5 * dmvnorm(x, mean = target_params$mu1, sigma = target_params$sigma1) +
+#               0.5 * dmvnorm(x, mean = target_params$mu2, sigma = target_params$sigma2)
+#   
+#   # Avoid division by zero
+#   p_source[p_source == 0] &lt;- 1e-10
+#   
+#   # Density ratio
+#   omega_true &lt;- p_target / p_source
+#   return(omega_true)
+# }
+# 
+# # Function to compute histograms and estimate density ratios
+# estimate_density_ratio_histogram &lt;- function(source_data, target_data, r, d, num_bins) {
+#   # Create bin edges based on r
+#   # Assuming data is scaled to [0,1] in each dimension
+#   bin_edges &lt;- seq(0, 1, by = r)
+#   
+#   # Function to assign data points to bins
+#   assign_bins &lt;- function(data, bin_edges) {
+#     apply(data, 2, function(x) cut(x, breaks = bin_edges, include.lowest = TRUE, labels = FALSE))
+#   }
+#   
+#   # Assign bins
+#   source_bins &lt;- assign_bins(source_data, bin_edges)
+#   target_bins &lt;- assign_bins(target_data, bin_edges)
+#   
+#   # Convert multi-dimensional bins to single indices
+#   source_indices &lt;- apply(source_bins, 1, function(row) paste(row, collapse = &quot;-&quot;))
+#   target_indices &lt;- apply(target_bins, 1, function(row) paste(row, collapse = &quot;-&quot;))
+#   
+#   # Count occurrences in each bin
+#   source_counts &lt;- table(factor(source_indices, levels = unique(c(source_indices, target_indices))))
+#   target_counts &lt;- table(factor(target_indices, levels = unique(c(source_indices, target_indices))))
+#   
+#   # Convert counts to density estimates
+#   p_source_hat &lt;- as.numeric(source_counts) / length(source_data[,1])
+#   p_target_hat &lt;- as.numeric(target_counts) / length(target_data[,1])
+#   
+#   # Avoid division by zero
+#   p_source_hat[p_source_hat == 0] &lt;- 1e-10
+#   
+#   # Estimated density ratio
+#   omega_hat &lt;- p_target_hat / p_source_hat
+#   
+#   return(list(omega_hat = omega_hat, source_counts = source_counts, target_counts = target_counts))
+# }
+# 
+# # Main function to select optimal r
+# select_optimal_r &lt;- function(source_data, target_data, d, n0, n1, 
+#                              beta_samples = 100, num_bins = NULL, seed = 123, 
+#                              source_params = NULL, target_params = NULL) {
+#   set.seed(seed)
+#   
+#   # Normalize data to [0,1] in each dimension for simplicity
+#   normalize_data &lt;- function(data) {
+#     apply(data, 2, function(x) (x - min(x)) / (max(x) - min(x)))
+#   }
+#   
+#   source_data_norm &lt;- normalize_data(source_data)
+#   target_data_norm &lt;- normalize_data(target_data)
+#   
+#   # If num_bins is not provided, set it based on r
+#   # We&#39;ll compute r based on beta, so num_bins will be 1/r
+#   # To ensure integer bins, we&#39;ll adjust accordingly
+#   
+#   # Sample beta&#39;s uniformly from (0,1]
+#   beta_values &lt;- runif(beta_samples, min = 1e-3, max = 1)  # Avoid exactly 0
+#   
+#   # Compute r for each beta
+#   min_n &lt;- min(n0, n1)
+#   log_min_n &lt;- log(min_n)
+#   
+#   r_values &lt;- (log_min_n / min_n)^(beta_values / (2 * beta_values + d))
+#   
+#   # Initialize vectors to store bias and variance
+#   bias_values &lt;- numeric(beta_samples)
+#   variance_values &lt;- numeric(beta_samples)
+#   
+#   # Loop over each beta and compute bias and variance
+#   for (i in 1:beta_samples) {
+#     beta &lt;- beta_values[i]
+#     r &lt;- r_values[i]
+#     
+#     # Compute number of bins per dimension
+#     # Assuming r is the bin width, number of bins = ceiling(1 / r)
+#     bins_per_dim &lt;- ceiling(1 / r)
+#     
+#     # Avoid extremely large number of bins
+#     if (bins_per_dim &gt; 50) {  # Arbitrary limit
+#       bins_per_dim &lt;- 50
+#     }
+#     
+#     # Adjust r based on bins_per_dim
+#     r_adj &lt;- 1 / bins_per_dim
+#     
+#     # Estimate density ratios using histogram
+#     hist_est &lt;- estimate_density_ratio_histogram(source_data_norm, target_data_norm, r_adj, d, num_bins = bins_per_dim)
+#     omega_hat &lt;- hist_est$omega_hat
+#     
+#     # Compute bias and variance
+#     # To compute bias and variance, we need the true omega at each bin
+#     # We&#39;ll approximate the bin centers
+#     # Generate all possible bin centers
+#     grid_list &lt;- replicate(d, seq(r_adj/2, 1 - r_adj/2, by = r_adj), simplify = FALSE)
+#     grid &lt;- expand.grid(grid_list)
+#     
+#     # Compute true omega at each bin center
+#     omega_true &lt;- compute_true_density_ratio(as.matrix(grid), source_params, target_params)
+#     
+#     # Compute estimated omega at each bin
+#     # Map histogram omega_hat to grid
+#     # Assuming the bins are ordered consistently
+#     # Compute bias: |omega_hat - omega_true|
+#     bias &lt;- mean(abs(omega_hat - omega_true))
+#     
+#     # Compute variance: variance of omega_hat
+#     variance &lt;- var(omega_hat)
+#     
+#     bias_values[i] &lt;- bias
+#     variance_values[i] &lt;- variance
+#   }
+#   
+#   # Find the r where bias is approximately equal to variance
+#   # Compute the absolute difference between bias and variance
+#   diff_bv &lt;- abs(bias_values - variance_values)
+#   
+#   # Find the index with the minimum difference
+#   optimal_index &lt;- which.min(diff_bv)
+#   
+#   optimal_r &lt;- r_values[optimal_index]
+#   optimal_beta &lt;- beta_values[optimal_index]
+#   optimal_bias &lt;- bias_values[optimal_index]
+#   optimal_variance &lt;- variance_values[optimal_index]
+#   
+#   # Optionally, plot bias and variance vs r
+#   plot_df &lt;- data.frame(
+#     r = r_values,
+#     bias = bias_values,
+#     variance = variance_values,
+#     diff = diff_bv
+#   )
+#   
+#   p1 &lt;- ggplot(plot_df, aes(x = r)) +
+#     geom_line(aes(y = bias, color = &quot;Bias&quot;)) +
+#     geom_line(aes(y = variance, color = &quot;Variance&quot;)) +
+#     geom_vline(xintercept = optimal_r, linetype = &quot;dashed&quot;, color = &quot;black&quot;) +
+#     labs(title = &quot;Bias and Variance vs r&quot;,
+#          x = &quot;r&quot;,
+#          y = &quot;Value&quot;,
+#          color = &quot;&quot;) +
+#     theme_minimal()
+#   
+#   p2 &lt;- ggplot(plot_df, aes(x = r, y = diff)) +
+#     geom_point() +
+#     geom_vline(xintercept = optimal_r, linetype = &quot;dashed&quot;, color = &quot;black&quot;) +
+#     labs(title = &quot;Difference between Bias and Variance vs r&quot;,
+#          x = &quot;r&quot;,
+#          y = &quot;|Bias - Variance|&quot;) +
+#     theme_minimal()
+#   
+#   grid.arrange(p1, p2, ncol = 2)
+#   
+#   # Return the optimal r and related information
+#   return(list(
+#     optimal_r = optimal_r,
+#     optimal_beta = optimal_beta,
+#     bias = optimal_bias,
+#     variance = optimal_variance,
+#     all_r = r_values,
+#     all_bias = bias_values,
+#     all_variance = variance_values
+#   ))
+# }
+# 
+# # Example Usage
+# 
+# # Define source and target parameters for true density ratio computation
+# # Example: both are mixtures of two Gaussians
+# source_params &lt;- list(
+#   mu1 = c(0, 0),
+#   sigma1 = diag(2),
+#   mu2 = c(3, 3),
+#   sigma2 = diag(2)
+# )
+# 
+# target_params &lt;- list(
+#   mu1 = c(1, 1),
+#   sigma1 = diag(2) * 0.5,
+#   mu2 = c(-2, -2),
+#   sigma2 = diag(2) * 2
+# )
+# 
+# # Simulate data using the previously defined simulate_data function
+# simulate_data &lt;- function(n0 = 1000, n1 = 1000, d = 2, seed = 123) {
+#   set.seed(seed)
+#   
+#   # Source Data
+#   source_data &lt;- rbind(
+#     mvrnorm(n = n0 / 2, mu = source_params$mu1, Sigma = source_params$sigma1),
+#     mvrnorm(n = n0 / 2, mu = source_params$mu2, Sigma = source_params$sigma2)
+#   )
+#   
+#   # Target Data
+#   target_data &lt;- rbind(
+#     mvrnorm(n = n1 / 2, mu = target_params$mu1, Sigma = target_params$sigma1),
+#     mvrnorm(n = n1 / 2, mu = target_params$mu2, Sigma = target_params$sigma2)
+#   )
+#   
+#   list(source = source_data, target = target_data)
+# }
+# 
+# # Generate simulated data
+# sim_data &lt;- simulate_data(n0 = 1000, n1 = 1000, d = 2, seed = 123)
+# source_data &lt;- sim_data$source
+# target_data &lt;- sim_data$target
+# 
+# # Select optimal r
+# optimal_selection &lt;- select_optimal_r(source_data, target_data, d = 2, 
+#                                      n0 = 1000, n1 = 1000, 
+#                                      beta_samples = 100, num_bins = NULL, seed = 123, 
+#                                      source_params = source_params, 
+#                                      target_params = target_params)
+# 
+# # View the optimal r and corresponding beta
+# print(optimal_selection$optimal_r)
+# print(optimal_selection$optimal_beta)
+# print(paste(&quot;Bias:&quot;, optimal_selection$optimal_bias))
+# print(paste(&quot;Variance:&quot;, optimal_selection$optimal_variance))</code></pre>
 </div>
 
 
