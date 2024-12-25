@@ -20,4 +20,4 @@ navbar:
       href: https://github.com/Minghe4419/covariate_shift.github.io
 output:
   html_document:
-    theme: spacelab
+    theme: readable

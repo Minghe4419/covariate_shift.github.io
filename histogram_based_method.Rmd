@@ -11,9 +11,22 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Histogram-based Method
+### Theoretical Background
 
-```{r}
-print("use histogram based estimation of distributions")
-```
+#### Estimator:
 
+#### Assumptions:
+
+- Compact Support: $supp(\mathbb{P}^{(1)})$ is compact in $\mathbb{R}^{d}$
+
+- Bounded Density Ratio: $||f||_{\infty} \leq B < \infty$
+
+- $\beta$-Hölder class: $|w(x) - w(x')| \leq L||x - x'||_{2}^{\beta}$ with $\beta \in (0, 1]$
+
+### Implementation
+
+
+### Highlights
+
+
+## References
