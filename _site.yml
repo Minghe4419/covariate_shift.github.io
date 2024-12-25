@@ -1,0 +1,23 @@
+name: "When You Are Struggle With Data Distributions"
+output_dir: "."
+navbar:
+  title: "Home"
+  left:
+    - href: index.html
+      class: "btn btn-primary navbar-btn"
+    - text: "Methods"
+      menu:
+        - text: "Separate Density Estimation"
+          href: separate_density_estimation.html
+        - text: "Histogram-based Method"
+          href: histogram_based_method.html
+      - text: "Slide"
+        href: https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf
+  right:
+    - icon: fa-envelope fa-lg
+      href: mailto:mw3845@cumc.columbia.edu
+    - icon: fa-github fa-lg
+      href: https://github.com/Minghe4419/covariate_shift.github.io
+output:
+  html_document:
+    theme: spacelab
