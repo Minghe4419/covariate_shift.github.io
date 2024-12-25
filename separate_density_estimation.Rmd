@@ -1,9 +1,10 @@
 ---
-title: "toy_example"
-author: "Minghe Wang"
-date: "`r Sys.Date()`"
+title: "Naive Method: Separate Density Estimation"
 output: 
-  github_document
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
 ---
 
 ```{r setup, include=FALSE}
