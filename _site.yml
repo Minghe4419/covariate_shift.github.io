@@ -11,8 +11,8 @@ navbar:
           href: separate_density_estimation.html
         - text: "Histogram-based Method"
           href: histogram_based_method.html
-      - text: "Slide"
-        href: https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf
+    - text: "Slide"
+      href: https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf
   right:
     - icon: fa-envelope fa-lg
       href: mailto:mw3845@cumc.columbia.edu
