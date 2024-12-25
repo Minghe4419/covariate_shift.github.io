@@ -271,7 +271,7 @@ grid.arrange(
 )
 ```
 
-![](toy_example_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+![](separate_density_estimation_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
 
 # Non-parametric KDE
 
@@ -488,4 +488,4 @@ grid.arrange(
 )
 ```
 
-![](toy_example_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
+![](separate_density_estimation_files/figure-gfm/unnamed-chunk-2-1.png)<!-- -->
