@@ -407,7 +407,7 @@ x&#39;||_{2}^{\beta}\)</span> with <span class="math inline">\(\beta \in
                           n0 = 1000,   # number of source samples
                           d  = 2,      # dimension
                           seed = 123) {
-  #set.seed(seed)
+  set.seed(seed)
   
   # --- Generate Source Data (Mixture of Gaussians) ---
   p_source &lt;- 0.5  # mixture proportion (50% from component 1, 50% from component 2)
@@ -479,8 +479,40 @@ class="math inline">\(n_1\)</span> is 1000.</p>
 source_sample_n = 1000
 min_sample = min(target_sample_n, source_sample_n)
 # Choose parameters
-r = 0.5 # we may use monte-carlo simulation
-alpha = log(target_sample_n) / target_sample_n</code></pre>
+r = 0.5731 # we may use monte-carlo simulation
+alpha = log(target_sample_n) / target_sample_n
+
+
+compute_histogram_ratio &lt;- function(x, target_data, source_data, r) {
+  # x is a numeric vector of length d
+  # target_data: n0 x d
+  # source_data: n1 x d
+  # r: numeric radius
+  
+  n0 &lt;- nrow(target_data)
+  n1 &lt;- nrow(source_data)
+  
+  # Indicator sum for target_data
+  # 1/ if distance &lt;= r, 0/ otherwise
+  # We&#39;ll compute Euclidean distance from x to each row in target_data
+  dist_target &lt;- apply(target_data, 1, function(xi) sqrt(sum((xi - x)^2)))
+  indicators_target &lt;- (dist_target &lt;= r)
+  numerator &lt;- mean(indicators_target)  # (1/n0) sum_i 1(...)
+  
+  # Indicator sum for source_data
+  dist_source &lt;- apply(source_data, 1, function(xi) sqrt(sum((xi - x)^2)))
+  indicators_source &lt;- (dist_source &lt;= r)
+  denominator &lt;- mean(indicators_source)  # (1/n1) sum_j 1(...)
+  
+  # Avoid division by zero if the denominator = 0
+  if (denominator == 0) {
+    ratio &lt;- Inf  # or define a small offset to avoid Inf, e.g. ratio &lt;- numerator / (denominator + 1e-10)
+  } else {
+    ratio &lt;- numerator / denominator
+  }
+  
+  return(ratio)
+}</code></pre>
 </div>
 <div id="highlights" class="section level2">
 <h2>Highlights</h2>
@@ -492,45 +524,21 @@ alpha = log(target_sample_n) / target_sample_n</code></pre>
 <h2>Code Appendix</h2>
 <div id="to-arbitrarily-choose-r" class="section level3">
 <h3>To arbitrarily choose r,</h3>
-<pre class="r"><code># Generates random mean and covariance for a single Gaussian component
-generate_gaussian_params &lt;- function(d = 2, seed = NULL) {
-  #if (!is.null(seed)) set.seed(seed)
-  
-  # Random mean between -3 and 3 in each dimension
-  mu &lt;- runif(d, min = -3, max = 3)
-  
-  # Random positive definite matrix for covariance
-  # 1. Generate random d x d matrix M
-  # 2. Make it symmetric positive-definite via Sigma = M^T * M + epsilon * I
-  M &lt;- matrix(rnorm(d^2), nrow = d, ncol = d)
-  Sigma &lt;- crossprod(M) + diag(d) * 0.1  # ensures positivity + some minimum variance
-  
-  list(mu = mu, Sigma = Sigma)
-}
-
-# Generates mu1, mu2, sigma1, sigma2 for a mixture of two Gaussians
-generate_mixture_params &lt;- function(d = 2, seed = NULL) {
-  #if (!is.null(seed)) set.seed(seed)
-  
-  comp1 &lt;- generate_gaussian_params(d)
-  comp2 &lt;- generate_gaussian_params(d)
-  
-  list(
-    mu1 = comp1$mu,
-    sigma1 = comp1$Sigma,
-    mu2 = comp2$mu,
-    sigma2 = comp2$Sigma
+<pre class="r"><code># Get parameters for source
+source_params &lt;- list(
+  mu1 = mean(source_data[,1]),
+  sigma1 = sd(source_data[,1]),
+  mu2 = mean(source_data[,2]),
+  sigma2 = sd(source_data[,2])
   )
-}
 
-# Suppose dimension d = 2
-d &lt;- 2
-
-# Generate random mixture parameters for source
-source_params &lt;- generate_mixture_params(d = d, seed = 123)
-
-# Generate random mixture parameters for target
-target_params &lt;- generate_mixture_params(d = d, seed = 456)
+# Get parameters for target
+target_params &lt;- list(
+  mu1 = mean(target_data[,1]),
+  sigma1 = sd(target_data[,1]),
+  mu2 = mean(target_data[,2]),
+  sigma2 = sd(target_data[,2])
+  )
 
 # How to arbitrarily choose r(How the Kpotufe does)
 # Load necessary libraries
@@ -600,7 +608,7 @@ estimate_density_ratio_histogram &lt;- function(source_data, target_data, r, d, 
 select_optimal_r &lt;- function(source_data, target_data, d, n0, n1,
                              beta_samples = 100, num_bins = NULL, seed = 123,
                              source_params = NULL, target_params = NULL) {
-  #set.seed(seed)
+  set.seed(seed)
 
   # Normalize data to [0,1] in each dimension for simplicity
   normalize_data &lt;- function(data) {
@@ -615,7 +623,7 @@ select_optimal_r &lt;- function(source_data, target_data, d, n0, n1,
   # To ensure integer bins, we&#39;ll adjust accordingly
 
   # Sample beta&#39;s uniformly from (0,1]
-  beta_values &lt;- runif(beta_samples, min = 1e-3, max = 1)  # Avoid exactly 0
+  beta_values &lt;- runif(beta_samples, min = 1e-3, max = 1 + 1e-15)  # Avoid exactly 0
 
   # Compute r for each beta
   min_n &lt;- min(n0, n1)
@@ -702,7 +710,7 @@ select_optimal_r &lt;- function(source_data, target_data, d, n0, n1,
     theme_minimal()
 
   p2 &lt;- ggplot(plot_df, aes(x = r, y = diff)) +
-    geom_point() +
+    geom_point(alpha = 0.6) +
     geom_vline(xintercept = optimal_r, linetype = &quot;dashed&quot;, color = &quot;black&quot;) +
     labs(title = &quot;Difference between Bias and Variance vs r&quot;,
          x = &quot;r&quot;,
@@ -777,7 +785,7 @@ class="math inline">\(r\)</span> would fall into. So we simulate the
 data-driven method used in <a
 href="https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf">Kpotufe(2017)</a>.</p>
 <p>With the simulation, we have <span class="math inline">\(r\)</span> =
-0.6317961, <span class="math inline">\(\beta\)</span> = 0.2263834. We
+0.5731211, <span class="math inline">\(\beta\)</span> = 0.2882899. We
 choose the <span class="math inline">\(r\)</span> when its variance(=
 0.3385516) and bias(= 0.5558634) term are approximately equal.</p>
 </div>

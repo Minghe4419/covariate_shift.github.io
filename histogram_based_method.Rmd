@@ -35,7 +35,7 @@ simulate_data <- function(n1 = 1000,   # number of target samples
                           n0 = 1000,   # number of source samples
                           d  = 2,      # dimension
                           seed = 123) {
-  #set.seed(seed)
+  set.seed(seed)
   
   # --- Generate Source Data (Mixture of Gaussians) ---
   p_source <- 0.5  # mixture proportion (50% from component 1, 50% from component 2)
@@ -111,8 +111,41 @@ target_sample_n = 800
 source_sample_n = 1000
 min_sample = min(target_sample_n, source_sample_n)
 # Choose parameters
-r = 0.5 # we may use monte-carlo simulation
+r = 0.5731 # we may use monte-carlo simulation
 alpha = log(target_sample_n) / target_sample_n
+
+
+compute_histogram_ratio <- function(x, target_data, source_data, r) {
+  # x is a numeric vector of length d
+  # target_data: n0 x d
+  # source_data: n1 x d
+  # r: numeric radius
+  
+  n0 <- nrow(target_data)
+  n1 <- nrow(source_data)
+  
+  # Indicator sum for target_data
+  # 1/ if distance <= r, 0/ otherwise
+  # We'll compute Euclidean distance from x to each row in target_data
+  dist_target <- apply(target_data, 1, function(xi) sqrt(sum((xi - x)^2)))
+  indicators_target <- (dist_target <= r)
+  numerator <- mean(indicators_target)  # (1/n0) sum_i 1(...)
+  
+  # Indicator sum for source_data
+  dist_source <- apply(source_data, 1, function(xi) sqrt(sum((xi - x)^2)))
+  indicators_source <- (dist_source <= r)
+  denominator <- mean(indicators_source)  # (1/n1) sum_j 1(...)
+  
+  # Avoid division by zero if the denominator = 0
+  if (denominator == 0) {
+    ratio <- Inf  # or define a small offset to avoid Inf, e.g. ratio <- numerator / (denominator + 1e-10)
+  } else {
+    ratio <- numerator / denominator
+  }
+  
+  return(ratio)
+}
+
 
 ```
 
@@ -126,45 +159,21 @@ alpha = log(target_sample_n) / target_sample_n
 ### To arbitrarily choose r,
 
 ```{r to_arbitraily_choose_r}
-# Generates random mean and covariance for a single Gaussian component
-generate_gaussian_params <- function(d = 2, seed = NULL) {
-  #if (!is.null(seed)) set.seed(seed)
-  
-  # Random mean between -3 and 3 in each dimension
-  mu <- runif(d, min = -3, max = 3)
-  
-  # Random positive definite matrix for covariance
-  # 1. Generate random d x d matrix M
-  # 2. Make it symmetric positive-definite via Sigma = M^T * M + epsilon * I
-  M <- matrix(rnorm(d^2), nrow = d, ncol = d)
-  Sigma <- crossprod(M) + diag(d) * 0.1  # ensures positivity + some minimum variance
-  
-  list(mu = mu, Sigma = Sigma)
-}
-
-# Generates mu1, mu2, sigma1, sigma2 for a mixture of two Gaussians
-generate_mixture_params <- function(d = 2, seed = NULL) {
-  #if (!is.null(seed)) set.seed(seed)
-  
-  comp1 <- generate_gaussian_params(d)
-  comp2 <- generate_gaussian_params(d)
-  
-  list(
-    mu1 = comp1$mu,
-    sigma1 = comp1$Sigma,
-    mu2 = comp2$mu,
-    sigma2 = comp2$Sigma
+# Get parameters for source
+source_params <- list(
+  mu1 = mean(source_data[,1]),
+  sigma1 = sd(source_data[,1]),
+  mu2 = mean(source_data[,2]),
+  sigma2 = sd(source_data[,2])
   )
-}
 
-# Suppose dimension d = 2
-d <- 2
-
-# Generate random mixture parameters for source
-source_params <- generate_mixture_params(d = d, seed = 123)
-
-# Generate random mixture parameters for target
-target_params <- generate_mixture_params(d = d, seed = 456)
+# Get parameters for target
+target_params <- list(
+  mu1 = mean(target_data[,1]),
+  sigma1 = sd(target_data[,1]),
+  mu2 = mean(target_data[,2]),
+  sigma2 = sd(target_data[,2])
+  )
 
 # How to arbitrarily choose r(How the Kpotufe does)
 # Load necessary libraries
@@ -234,7 +243,7 @@ estimate_density_ratio_histogram <- function(source_data, target_data, r, d, num
 select_optimal_r <- function(source_data, target_data, d, n0, n1,
                              beta_samples = 100, num_bins = NULL, seed = 123,
                              source_params = NULL, target_params = NULL) {
-  #set.seed(seed)
+  set.seed(seed)
 
   # Normalize data to [0,1] in each dimension for simplicity
   normalize_data <- function(data) {
@@ -249,7 +258,7 @@ select_optimal_r <- function(source_data, target_data, d, n0, n1,
   # To ensure integer bins, we'll adjust accordingly
 
   # Sample beta's uniformly from (0,1]
-  beta_values <- runif(beta_samples, min = 1e-3, max = 1)  # Avoid exactly 0
+  beta_values <- runif(beta_samples, min = 1e-3, max = 1 + 1e-15)  # Avoid exactly 0
 
   # Compute r for each beta
   min_n <- min(n0, n1)
@@ -336,7 +345,7 @@ select_optimal_r <- function(source_data, target_data, d, n0, n1,
     theme_minimal()
 
   p2 <- ggplot(plot_df, aes(x = r, y = diff)) +
-    geom_point() +
+    geom_point(alpha = 0.6) +
     geom_vline(xintercept = optimal_r, linetype = "dashed", color = "black") +
     labs(title = "Difference between Bias and Variance vs r",
          x = "r",
