@@ -385,6 +385,32 @@ div.tocify {
 <h2>Theoretical Background</h2>
 <div id="estimator" class="section level3">
 <h3>Estimator</h3>
+<ul>
+<li><p>Goal: estimating <span class="math inline">\(w = f^{(0)} /
+f^{(1)}\)</span> from <span
+class="math inline">\(\{x_{i^{(k)}}\}^{n_k}_{i=1}
+\overset{\mathrm{iid}}{\sim} f^{(k)}\)</span></p></li>
+<li><p>Estimator<a
+href="https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf">(Kpotufe,
+2017)</a>: <span class="math inline">\(\tilde{w} =
+\frac{\hat{\mathbb{P}}^{(0)}(B(x, r))}{\hat{\mathbb{P}}^{(1)}(B(x, r))}
+= \frac{n_{0}^{-1}\sum_{i=1}^{n_0}\mathbb{1}(||x - x_{i}^{(0)}||_2 \leq
+r)}{n_{1}^{-1}\sum_{i=1}^{n_1}\mathbb{1}(||x - x_{i}^{(1)}||_2 \leq
+r}\)</span>; <span class="math inline">\(\hat{w}(x) = \tilde{w}(x)
+\mathbb{1}(\hat{\mathbb{P}}^{(1)}(B(x, r)) \geq
+\alpha)\)</span></p></li>
+<li><p>Theorem 3.4.1 <a
+href="https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf">(Kpotufe,
+2017)</a>:</p>
+<p>With <span class="math inline">\(r\)</span> <span
+class="math inline">\(\asymp [\frac{log(n_0 \bigwedge n_{1})}{n_0
+\bigwedge n_1}]^{\frac{\beta}{2\beta + d}}\)</span>, <span
+class="math inline">\(\alpha \asymp \frac{log(n_0)}{n_0}\)</span>, we
+have:</p>
+<p><span class="math inline">\(\mathbb{E}_{X \sim \mathbb{P}^{(1)}}
+|\hat{w}(X) - w(X)| \lesssim_{\mathbb{P}}[\frac{log(n_0 \bigwedge
+n_{1})}{n_0 \bigwedge n_1}]^{\frac{\beta}{2\beta + d}}\)</span></p></li>
+</ul>
 </div>
 <div id="assumptions" class="section level3">
 <h3>Assumptions</h3>
@@ -413,12 +439,12 @@ x&#39;||_{2}^{\beta}\)</span> with <span class="math inline">\(\beta \in
   p_source &lt;- 0.5  # mixture proportion (50% from component 1, 50% from component 2)
   
   # Means for the two components in the source mixture
-  mu_source1 &lt;- rep(0, d)
-  mu_source2 &lt;- rep(3, d)  # shift second component to separate it somewhat
+  mu_source1 &lt;- rep(-4, d)
+  mu_source2 &lt;- rep(4, d)  # shift second component to separate it somewhat
   
   # Covariance matrices for the two source components (identity for simplicity)
-  Sigma_source1 &lt;- diag(d)
-  Sigma_source2 &lt;- diag(d)
+  Sigma_source1 &lt;- diag(d)*4
+  Sigma_source2 &lt;- diag(d)*4
   
   # Allocate memory
   source_data &lt;- matrix(NA, nrow = n1, ncol = d)
@@ -435,11 +461,11 @@ x&#39;||_{2}^{\beta}\)</span> with <span class="math inline">\(\beta \in
   }
   
   # --- Generate Target Data (Another Mixture of Gaussians) ---
-  p_target &lt;- 0.7  # mixture proportion for target data
-  mu_target1 &lt;- rep(1,  d)   # slightly different mean
-  mu_target2 &lt;- rep(-2, d)   # negative shift
-  Sigma_target1 &lt;- diag(d) * 0.5  # smaller covariance
-  Sigma_target2 &lt;- diag(d) * 2    # larger covariance
+  p_target &lt;- 0.5  # mixture proportion for target data
+  mu_target1 &lt;- rep(-4,  d)
+  mu_target2 &lt;- rep(4, d)
+  Sigma_target1 &lt;- diag(d)
+  Sigma_target2 &lt;- diag(d)
   
   # Allocate memory
   target_data &lt;- matrix(NA, nrow = n0, ncol = d)
@@ -463,25 +489,28 @@ x&#39;||_{2}^{\beta}\)</span> with <span class="math inline">\(\beta \in
 }
 
 # Example Usage
-target_sample_n = 800
+target_sample_n = 1000
 source_sample_n = 1000
-dimension = 2
+dimension = 20
 sim_data &lt;- simulate_data(n1 = source_sample_n, n0 = target_sample_n, d = dimension, seed = 123)
 source_data &lt;- sim_data$source
 target_data &lt;- sim_data$target</code></pre>
 <p>We generate multi-Gaussian distribution to simulate non-parametric
-data. Dimension of data <span class="math inline">\(d\)</span> is 2;
+data. Dimension of data <span class="math inline">\(d\)</span> is 20;
 sample size of target data <span class="math inline">\(n_0\)</span> is
-800; and sample size of source data <span
+1000; and sample size of source data <span
 class="math inline">\(n_1\)</span> is 1000.</p>
-<pre class="r"><code># Visualize high dimensional data</code></pre>
-<pre class="r"><code>target_sample_n = 800
+<p>All the parameters we use are from <a
+href="https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf">Kpotufe(2017)</a>.</p>
+<p><em>Note for myself</em>: what is the test size the auhtor mentioned
+in Firgure 2 of the paper? what does X = t * x mean? How come
+distribution of t 1D?</p>
+<pre class="r"><code>target_sample_n = 1000
 source_sample_n = 1000
 min_sample = min(target_sample_n, source_sample_n)
 # Choose parameters
-r = 0.5731 # we may use monte-carlo simulation
-alpha = log(target_sample_n) / target_sample_n
-
+r = 0.02 # we may use monte-carlo simulation
+#r = 0.5731
 
 compute_histogram_ratio &lt;- function(x, target_data, source_data, r) {
   # x is a numeric vector of length d
@@ -511,7 +540,30 @@ compute_histogram_ratio &lt;- function(x, target_data, source_data, r) {
     ratio &lt;- numerator / denominator
   }
   
-  return(ratio)
+  # To obtain the re-weighted test vector
+  alpha = log(n0) / n0
+  estimate_reweight &lt;- ifelse(
+    denominator &gt;= alpha, ratio, 0
+  )
+  
+  list(ratio = ratio, 
+       estimation = estimate_reweight)
+}
+
+
+test_n = 2000
+test_component &lt;- sample(1:2, size = test_n, replace = TRUE)
+test_query &lt;- ifelse(test_component == 1,
+                   rnorm(test_n, mean = -4, sd = 4),
+                   rnorm(test_n, mean = 4, sd = 4))
+test_matrix &lt;- matrix(test_query, nrow = test_n, ncol = dimension)
+
+
+estimations = matrix(NA, nrow = test_n, ncol = 1)
+weighted_ratio = matrix(NA, nrow = test_n, ncol = 1)
+for (i in seq_len(test_n)) {
+  weighted_ratio[i, ] &lt;- compute_histogram_ratio(test_matrix[i, ], target_data, source_data, r)$ratio
+  estimations[i, ] &lt;- compute_histogram_ratio(test_matrix[i, ], target_data, source_data, r)$estimation
 }</code></pre>
 </div>
 <div id="highlights" class="section level2">
@@ -519,6 +571,10 @@ compute_histogram_ratio &lt;- function(x, target_data, source_data, r) {
 </div>
 <div id="references" class="section level2">
 <h2>References</h2>
+<p><a href="https://proceedings.mlr.press/v54/kpotufe17a.html">Kpotufe,
+S. (2017). Lipschitz density-ratios, structured data, and data-driven
+tuning. In Artificial Intelligence and Statistics, pages 1320–1328.
+PMLR.</a></p>
 </div>
 <div id="code-appendix" class="section level2">
 <h2>Code Appendix</h2>
@@ -780,14 +836,10 @@ optimal_selection &lt;- select_optimal_r(source_data, target_data, d = 2,
                                      source_params = source_params,
                                      target_params = target_params)</code></pre>
 <p><img src="histogram_based_method_files/figure-html/to_arbitraily_choose_r-1.png" width="672" /></p>
-<p>Here we want to know how the approximate interval that <span
-class="math inline">\(r\)</span> would fall into. So we simulate the
-data-driven method used in <a
+<p>Here we simulate the data-driven method used in <a
 href="https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf">Kpotufe(2017)</a>.</p>
-<p>With the simulation, we have <span class="math inline">\(r\)</span> =
-0.5731211, <span class="math inline">\(\beta\)</span> = 0.2882899. We
-choose the <span class="math inline">\(r\)</span> when its variance(=
-0.3385516) and bias(= 0.5558634) term are approximately equal.</p>
+<p>The optimal rate <span class="math inline">\(r\)</span> is
+0.5731211.</p>
 </div>
 </div>
 

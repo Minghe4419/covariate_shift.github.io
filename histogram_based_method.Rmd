@@ -20,6 +20,16 @@ library(mvtnorm)
 
 ### Estimator
 
+- Goal: estimating $w = f^{(0)} / f^{(1)}$ from $\{x_{i^{(k)}}\}^{n_k}_{i=1} \overset{\mathrm{iid}}{\sim} f^{(k)}$
+
+- Estimator[(Kpotufe, 2017)](https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf): $\tilde{w} = \frac{\hat{\mathbb{P}}^{(0)}(B(x, r))}{\hat{\mathbb{P}}^{(1)}(B(x, r))} = \frac{n_{0}^{-1}\sum_{i=1}^{n_0}\mathbb{1}(||x - x_{i}^{(0)}||_2 \leq r)}{n_{1}^{-1}\sum_{i=1}^{n_1}\mathbb{1}(||x - x_{i}^{(1)}||_2 \leq r}$; $\hat{w}(x) = \tilde{w}(x) \mathbb{1}(\hat{\mathbb{P}}^{(1)}(B(x, r)) \geq \alpha)$
+
+- Theorem 3.4.1 [(Kpotufe, 2017)](https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf):
+
+  With $r$ $\asymp [\frac{log(n_0 \bigwedge n_{1})}{n_0 \bigwedge n_1}]^{\frac{\beta}{2\beta + d}}$, $\alpha \asymp \frac{log(n_0)}{n_0}$, we have:
+
+  $\mathbb{E}_{X \sim \mathbb{P}^{(1)}} |\hat{w}(X) - w(X)| \lesssim_{\mathbb{P}}[\frac{log(n_0 \bigwedge n_{1})}{n_0 \bigwedge n_1}]^{\frac{\beta}{2\beta + d}}$
+
 ### Assumptions
 
 - Compact Support: $supp(\mathbb{P}^{(1)})$ is compact in $\mathbb{R}^{d}$
@@ -41,12 +51,12 @@ simulate_data <- function(n1 = 1000,   # number of target samples
   p_source <- 0.5  # mixture proportion (50% from component 1, 50% from component 2)
   
   # Means for the two components in the source mixture
-  mu_source1 <- rep(0, d)
-  mu_source2 <- rep(3, d)  # shift second component to separate it somewhat
+  mu_source1 <- rep(-4, d)
+  mu_source2 <- rep(4, d)  # shift second component to separate it somewhat
   
   # Covariance matrices for the two source components (identity for simplicity)
-  Sigma_source1 <- diag(d)
-  Sigma_source2 <- diag(d)
+  Sigma_source1 <- diag(d)*4
+  Sigma_source2 <- diag(d)*4
   
   # Allocate memory
   source_data <- matrix(NA, nrow = n1, ncol = d)
@@ -63,11 +73,11 @@ simulate_data <- function(n1 = 1000,   # number of target samples
   }
   
   # --- Generate Target Data (Another Mixture of Gaussians) ---
-  p_target <- 0.7  # mixture proportion for target data
-  mu_target1 <- rep(1,  d)   # slightly different mean
-  mu_target2 <- rep(-2, d)   # negative shift
-  Sigma_target1 <- diag(d) * 0.5  # smaller covariance
-  Sigma_target2 <- diag(d) * 2    # larger covariance
+  p_target <- 0.5  # mixture proportion for target data
+  mu_target1 <- rep(-4,  d)
+  mu_target2 <- rep(4, d)
+  Sigma_target1 <- diag(d)
+  Sigma_target2 <- diag(d)
   
   # Allocate memory
   target_data <- matrix(NA, nrow = n0, ncol = d)
@@ -91,9 +101,9 @@ simulate_data <- function(n1 = 1000,   # number of target samples
 }
 
 # Example Usage
-target_sample_n = 800
+target_sample_n = 1000
 source_sample_n = 1000
-dimension = 2
+dimension = 20
 sim_data <- simulate_data(n1 = source_sample_n, n0 = target_sample_n, d = dimension, seed = 123)
 source_data <- sim_data$source
 target_data <- sim_data$target
@@ -102,18 +112,18 @@ target_data <- sim_data$target
 
 We generate multi-Gaussian distribution to simulate non-parametric data. Dimension of data $d$ is `r dimension`; sample size of target data $n_0$ is `r target_sample_n`; and sample size of source data $n_1$ is `r source_sample_n`.
 
-```{r raw_data_visualization}
-# Visualize high dimensional data
-```
+All the parameters we use are from [Kpotufe(2017)](https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf).
+
+*Note for myself*: what is the test size the auhtor mentioned in Firgure 2 of the paper? what does X = t * x mean? How come distribution of t 1D? 
+
 
 ```{r simulate_estimation}
-target_sample_n = 800
+target_sample_n = 1000
 source_sample_n = 1000
 min_sample = min(target_sample_n, source_sample_n)
 # Choose parameters
-r = 0.5731 # we may use monte-carlo simulation
-alpha = log(target_sample_n) / target_sample_n
-
+r = 0.02 # we may use monte-carlo simulation
+#r = 0.5731
 
 compute_histogram_ratio <- function(x, target_data, source_data, r) {
   # x is a numeric vector of length d
@@ -143,9 +153,35 @@ compute_histogram_ratio <- function(x, target_data, source_data, r) {
     ratio <- numerator / denominator
   }
   
-  return(ratio)
+  # To obtain the re-weighted test vector
+  alpha = log(n0) / n0
+  estimate_reweight <- ifelse(
+    denominator >= alpha, ratio, 0
+  )
+  
+  list(ratio = ratio, 
+       estimation = estimate_reweight)
 }
 
+
+test_n = 2000
+test_component <- sample(1:2, size = test_n, replace = TRUE)
+test_query <- ifelse(test_component == 1,
+                   rnorm(test_n, mean = -4, sd = 4),
+                   rnorm(test_n, mean = 4, sd = 4))
+test_matrix <- matrix(test_query, nrow = test_n, ncol = dimension)
+
+
+estimations = matrix(NA, nrow = test_n, ncol = 1)
+weighted_ratio = matrix(NA, nrow = test_n, ncol = 1)
+for (i in seq_len(test_n)) {
+  weighted_ratio[i, ] <- compute_histogram_ratio(test_matrix[i, ], target_data, source_data, r)$ratio
+  estimations[i, ] <- compute_histogram_ratio(test_matrix[i, ], target_data, source_data, r)$estimation
+}
+
+```
+
+```{r}
 
 ```
 
@@ -153,6 +189,8 @@ compute_histogram_ratio <- function(x, target_data, source_data, r) {
 
 
 ## References
+
+[Kpotufe, S. (2017). Lipschitz density-ratios, structured data, and data-driven tuning. In Artificial Intelligence and Statistics, pages 1320–1328. PMLR.](https://proceedings.mlr.press/v54/kpotufe17a.html)
 
 ## Code Appendix
 
@@ -418,6 +456,6 @@ optimal_selection <- select_optimal_r(source_data, target_data, d = 2,
 
 ```
 
-Here we want to know how the approximate interval that $r$ would fall into. So we simulate the data-driven method used in [Kpotufe(2017)](https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf).
+Here we simulate the data-driven method used in [Kpotufe(2017)](https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf).
 
-With the simulation, we have $r$ = `r optimal_selection$optimal_r`, $\beta$ = `r optimal_selection$optimal_beta`. We choose the $r$ when its variance(= `r optimal_selection$variance`) and bias(= `r optimal_selection$bias`) term are approximately equal.
+The optimal rate $r$ is `r optimal_selection$optimal_r`.
