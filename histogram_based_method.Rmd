@@ -40,8 +40,6 @@ library(mvtnorm)
 
 ## Implementation
 
-
-
 ```{r}
 # ----------------------------
 # 1) Setup
