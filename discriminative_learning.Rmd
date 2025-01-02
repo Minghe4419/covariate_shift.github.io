@@ -13,6 +13,20 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Theoretical Background
 
+Suppose the data we observe is from a mixture model $\pi_{0} \mathbb{P}^{(0)}_{X, Y} + \pi_{1} \mathbb{P}^{(1)}_{X, Y}$, with $\pi_{k} = \mathbb{P}(Z=k)$ and $Z \in \{0,1\}$ as a latent label of each observation.
+
+By Bayes Rule:
+
+  $\frac{d\mathbb{P}^{(0)}_{X}}{d\mathbb{P}^{(1)}_{X}}(x) = \frac{\pi^{*}_{1}}{\pi^{*}_{0}} \frac{d\mathbb{P}^{(0)}_{Z,X}}{d\mathbb{P}^{(1)}_{Z,X}}(x) = \frac{\pi^{*}_{1}}{\pi^{*}_{0}}\frac{\mathbb{P}(Z=0|X=x)}{\mathbb{P}(Z=1|X=x)}$
+  
+With iid data, we can can approximate $\pi^{*}_{k}$ with $\hat{w_k} = \frac{n_k}{n_0 + n_1}, k=0,1$
+
+- Estimator:
+  
+  Step 1: Learn the propensity score $\mathbb{P}(Z=k|X=x)$ by your favorite model $\Rightarrow \hat{\mathbb{P}}(Z=k|X=x)$
+  
+  Step 2: Use the weight $\hat{w} = \frac{\hat{\pi}_{1}}{\hat{\pi}_{0}}\frac{\hat{\mathbb{P}}(Z=0|X=x)}{\hat{\mathbb{P}}(Z=1|X=x)}$ to reweight the source data then solve the ERM problem
+
 ## Code Implementation
 
 ## Highlights

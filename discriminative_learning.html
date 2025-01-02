@@ -389,6 +389,32 @@ div.tocify {
 
 <div id="theoretical-background" class="section level2">
 <h2>Theoretical Background</h2>
+<p>Suppose the data we observe is from a mixture model <span
+class="math inline">\(\pi_{0} \mathbb{P}^{(0)}_{X, Y} + \pi_{1}
+\mathbb{P}^{(1)}_{X, Y}\)</span>, with <span
+class="math inline">\(\pi_{k} = \mathbb{P}(Z=k)\)</span> and <span
+class="math inline">\(Z \in \{0,1\}\)</span> as a latent label of each
+observation.</p>
+<p>By Bayes Rule:</p>
+<p><span
+class="math inline">\(\frac{d\mathbb{P}^{(0)}_{X}}{d\mathbb{P}^{(1)}_{X}}(x)
+= \frac{\pi^{*}_{1}}{\pi^{*}_{0}}
+\frac{d\mathbb{P}^{(0)}_{Z,X}}{d\mathbb{P}^{(1)}_{Z,X}}(x) =
+\frac{\pi^{*}_{1}}{\pi^{*}_{0}}\frac{\mathbb{P}(Z=0|X=x)}{\mathbb{P}(Z=1|X=x)}\)</span></p>
+<p>With iid data, we can can approximate <span
+class="math inline">\(\pi^{*}_{k}\)</span> with <span
+class="math inline">\(\hat{w_k} = \frac{n_k}{n_0 + n_1},
+k=0,1\)</span></p>
+<ul>
+<li><p>Estimator:</p>
+<p>Step 1: Learn the propensity score <span
+class="math inline">\(\mathbb{P}(Z=k|X=x)\)</span> by your favorite
+model <span class="math inline">\(\Rightarrow
+\hat{\mathbb{P}}(Z=k|X=x)\)</span></p>
+<p>Step 2: Use the weight <span class="math inline">\(\hat{w} =
+\frac{\hat{\pi}_{1}}{\hat{\pi}_{0}}\frac{\hat{\mathbb{P}}(Z=0|X=x)}{\hat{\mathbb{P}}(Z=1|X=x)}\)</span>
+to reweight the source data then solve the ERM problem</p></li>
+</ul>
 </div>
 <div id="code-implementation" class="section level2">
 <h2>Code Implementation</h2>
