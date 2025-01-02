@@ -340,6 +340,9 @@ div.tocify {
     <li>
       <a href="histogram_based_method.html">Histogram-based Method</a>
     </li>
+    <li>
+      <a href="kernel_mean_matching.html">Kernel Mean Matching</a>
+    </li>
   </ul>
 </li>
 <li>
@@ -383,15 +386,357 @@ div.tocify {
 
 <div id="theoretical-background" class="section level2">
 <h2>Theoretical Background</h2>
+<ul>
+<li><p>Estimator:</p>
+<p><span class="math inline">\(\mathbb{E}_{X \sim \mathbb{P}^{(0)}}
+[\Phi(X)] = \mathbb{E}_{X \sim \mathbb{P}^{(1)}} [\Phi(X)w(X)]\)</span>
+for any appropriate “anchor” function <span
+class="math inline">\(\Phi\)</span></p></li>
+<li><p>Anchor Function:</p>
+<p>Consequence of Injection: If <span class="math inline">\(\tilde{w}:
+\chi \rightarrow \mathbb{R}_{+}\)</span> satisfies <span
+class="math inline">\(\mathbb{E}_{X \sim \mathbb{P^{(1)}}} \tilde{w}(X)
+= 1\)</span> and <span class="math inline">\(\mathbb{E}_{X \sim
+\mathbb{P}^{(0)}} [\Phi(X)] = \mathbb{E}_{X \sim \mathbb{P}^{(1)}}
+[\Phi(X)\tilde{w}(X)]\)</span>, then <span
+class="math inline">\(\tilde{w} = w\)</span></p>
+<p>When <span class="math inline">\(\Phi(x) = K(., x)\)</span> is a
+feature map of the <a
+href="https://en.wikipedia.org/wiki/Reproducing_kernel_Hilbert_space">Reproducing
+Kernel Hilbert Space (RKHS)</a> induced by a universal kernel <span
+class="math inline">\(K, \mu: \mathbb{P} \mapsto \mathbb{E}_{X \sim
+\mathbb{P} \Phi(X)}\)</span> is injective, i.e. <span
+class="math inline">\(\mathbb{P} \neq \mathbb{Q} \Rightarrow
+\mu(\mathbb{P}) \neq \mu(\mathbb{Q})\)</span></p></li>
+<li><p>Practical Algorithm:</p>
+<p>Requires <span
+class="math inline">\(\{x^{(k)}_{i}\}^{n_k}_{i=1}\)</span> <span
+class="math inline">\(\overset{\mathrm{iid}}{\sim}\)</span> <span
+class="math inline">\(\mathbb{P}^{(k)}\)</span>, <span
+class="math inline">\(\epsilon\)</span>, <span class="math inline">\(B
+&gt; 0\)</span> as input.</p>
+<p>Solve <span class="math inline">\(min ||\frac{1}{n_1}\sum_{i=1}^{n_1}
+w_i \Phi(x_{i}^{(1)}) - \frac{1}{n_0} \sum_{i=1}^{n_0} \Phi(x_{i}^{(0)}
+||^{2}_{\mathcal{H}}\)</span></p>
+<p>s.t. <span class="math inline">\(w_i \in [0, B], |\frac{1}{n_1}
+\sum_{i=1}^{n_1}w_i - 1| \leq \epsilon\)</span></p>
+<p>By <a
+href="https://en.wikipedia.org/wiki/Reproducing_kernel_Hilbert_space">Reproducing
+property</a>, <span
+class="math inline">\(||\frac{1}{n_1}\sum_{i=1}^{n_1} w_i
+\Phi(x_{i}^{(1)}) - \frac{1}{n_0} \sum_{i=1}^{n_0} \Phi(x_{i}^{(0)}
+||^{2}_{\mathcal{H}}  = \frac{1}{n_{1}^{2}} w^{T} K w - \frac{2}{n_1}
+{\kappa}^{T}w + constant\)</span>, where <span
+class="math inline">\(\kappa_i =
+\frac{1}{n_0}\sum_{j=1}{n_0}K(x_{j}^{(0)}, x_{i}^{(1)})\)</span>. Hence
+it becomes a <a
+href="https://en.wikipedia.org/wiki/Quadratic_programming">quadratic
+programming (QP) problem</a>.</p></li>
+</ul>
 </div>
 <div id="implementation" class="section level2">
 <h2>Implementation</h2>
+<pre class="r"><code># Set seed for reproducibility
+set.seed(123)
+
+# Define dimensionality and direction vector
+D &lt;- 20
+v &lt;- seq_len(D)  # Example: v = (1, 2, ..., 20)
+
+# Number of samples
+n_source &lt;- 1000
+n_target &lt;- 1000
+
+# Function to generate mixture of Gaussians
+mix_2_gaussian &lt;- function(n, means, sds) {
+  comps &lt;- sample.int(2, size = n, replace = TRUE, prob = c(0.5, 0.5))
+  rnorm(n, mean = means[comps], sd = sds[comps])
+}
+
+# Generate source and target t values
+source_t &lt;- mix_2_gaussian(n_source, c(-4, 4), c(4, 4))  # Higher variance
+target_t &lt;- mix_2_gaussian(n_target, c(-4, 4), c(1, 1))  # Lower variance
+
+# Embed t into D dimensions
+X_source &lt;- outer(source_t, v)  # n_source x D
+X_target &lt;- outer(target_t, v)  # n_target x D
+###################################################################################################
+# # Define RBF kernel function
+# rbf_kernel &lt;- function(x, y, sigma = 1) {
+#   exp(-sum((x - y)^2) / (2 * sigma^2))
+# }
+# 
+# # Compute the kernel matrix K (Source-to-Source) using vectorized operations
+# compute_kernel_matrix_rbf &lt;- function(X, sigma = 1) {
+#   # Compute pairwise squared Euclidean distances
+#   distance_sq &lt;- as.matrix(dist(X, method = &quot;euclidean&quot;))^2
+#   # Compute RBF kernel
+#   K &lt;- exp(-distance_sq / (2 * sigma^2))
+#   return(K)
+# }
+# 
+# # Compute K using RBF kernel
+# sigma &lt;- 5  # Initial sigma; to be tuned
+# K &lt;- compute_kernel_matrix_rbf(X_source, sigma)
+# 
+# # Compute the k vector (Source-to-Target) using vectorized operations
+# compute_k_vector_rbf &lt;- function(X_target, X_source, sigma = 1) {
+#   # Compute cross pairwise squared Euclidean distances
+#   distance_sq &lt;- proxy::dist(X_target, X_source, method = &quot;euclidean&quot;)^2
+#   # Compute RBF kernel
+#   K_cross &lt;- exp(-distance_sq / (2 * sigma^2))
+#   # Average over target samples
+#   k_vec &lt;- colMeans(K_cross)
+#   return(k_vec)
+# }
+# 
+# # Compute k_vec using RBF kernel
+# k_vec &lt;- compute_k_vector_rbf(X_target, X_source, sigma)
+###################################################################################################
+linear_kernel &lt;- function(x, y) {
+  sum(x * y)
+}
+
+# --------------------------
+# 2) Compute K (source-to-source) with the linear kernel
+# --------------------------
+compute_linear_kernel_matrix &lt;- function(X_source) {
+  # X_source is n_source x D
+  # We&#39;ll compute an n_source x n_source kernel matrix
+  # with K[i,j] = x_i · x_j
+  # Efficient approach: K = X_source %*% t(X_source)
+  K_lin &lt;- X_source %*% t(X_source)
+  K_lin
+}
+
+K &lt;- compute_linear_kernel_matrix(X_source)
+
+# --------------------------
+# 3) Compute k_vec (source-to-target) with the linear kernel
+# --------------------------
+compute_k_vector_linear &lt;- function(X_target, X_source) {
+  # For each source row i, we want average dot product with all target rows
+  # i.e., k[i] = (1 / n_target) sum_j (x_i · x_j_target)
+  
+  # We&#39;ll do this by matrix multiplication: X_source %*% t(X_target)
+  # Then average across target rows
+  cross_mat &lt;- X_source %*% t(X_target)   # (n_source x n_target)
+  
+  # k_vec[i] = mean of cross_mat[i, ] over j
+  # So we want colMeans if cross_mat is transposed, or rowMeans if cross_mat is n_source x n_target
+  # cross_mat is n_source x n_target, so rowMeans =&gt; length n_source
+  k_lin &lt;- rowMeans(cross_mat)
+  
+  k_lin
+}
+
+k_vec &lt;- compute_k_vector_linear(X_target, X_source)
+
+# Define upper bound for weights
+B &lt;- 1000  # Adjust based on your requirements
+
+# Number of source samples
+n1 &lt;- nrow(X_source)
+
+lambda &lt;- 1e-7
+K_reg &lt;- K + diag(lambda, nrow(K))
+# Construct Dmat and dvec for quadprog
+Dmat &lt;- (2 / n1^2) * K_reg  # Multiply by 2 due to quadprog&#39;s 1/2 factor
+dvec &lt;- (2 / n1) * k_vec
+
+# Constraints:
+# 1. sum(w) = 1 (equality)
+# 2. 0 &lt;= w_i &lt;= B (inequality)
+
+# Define epsilon for the &quot;soft&quot; sum constraint
+epsilon &lt;- 10  # for example
+
+# 0) We already have n1 = number of source samples,
+#    B = upper bound, from your existing code
+
+# 1) Build the inequality constraint matrix A_ineq, each row is one constraint
+#    Then remember quadprog wants A = t(A_ineq) in the end.
+
+A_ineq &lt;- rbind(
+  # (1) sum(w) &gt;= n1(1 - epsilon) --&gt; row is  +1 +1 +1 ... +1
+  rep(1, n1),
+
+  # (2) sum(w) &lt;= n1(1 + epsilon) --&gt; row is -1 -1 -1 ... -1
+  -rep(1, n1),
+  
+  # (3) w_i &gt;= 0 --&gt; rows of the identity matrix
+  diag(n1),
+  
+  # (4) w_i &lt;= B --&gt; -w_i &gt;= -B --&gt; rows of -diag(n1)
+  -diag(n1)
+)
+
+# 2) Build the corresponding b_ineq
+b_ineq &lt;- c(
+  # (1) sum(w) &gt;= n1(1 - epsilon)
+  n1 * (1 - epsilon),
+
+  # (2) sum(w) &lt;= n1(1 + epsilon) =&gt; -sum(w) &gt;= -n1(1+epsilon)
+  -n1 * (1 + epsilon),
+
+  # (3) w_i &gt;= 0 =&gt; 0
+  rep(0, n1),
+
+  # (4) w_i &lt;= B =&gt; -w_i &gt;= -B
+  rep(-B, n1)
+)
+
+# 3) Transpose, because solve.QP expects A^T w &gt;= b
+Amat &lt;- t(A_ineq)
+bvec &lt;- b_ineq
+
+# 4) No equality constraints here =&gt; meq = 0
+meq &lt;- 0
+
+
+# 5) Solve the QP
+qp_solution &lt;- solve.QP(Dmat, dvec, Amat, bvec, meq = meq)
+
+# Extract the optimal weights
+w_opt &lt;- qp_solution$solution
+w_opt[w_opt &lt; 1e-12] &lt;- 0
+
+# Verify constraints
+cat(&quot;Sum of weights:&quot;, sum(w_opt), &quot;\n&quot;)  # Should be ~1</code></pre>
+<pre><code>## Sum of weights: 11.0475</code></pre>
+<pre class="r"><code>cat(&quot;All weights &gt;= 0:&quot;, all(w_opt &gt;= 0), &quot;\n&quot;)  # Should be TRUE</code></pre>
+<pre><code>## All weights &gt;= 0: TRUE</code></pre>
+<pre class="r"><code>cat(&quot;All weights &lt;= B:&quot;, all(w_opt &lt;= B), &quot;\n&quot;)  # Should be TRUE</code></pre>
+<pre><code>## All weights &lt;= B: TRUE</code></pre>
+<pre class="r"><code># Visualization: Weighted Source vs. Target Distribution
+df_source_weighted &lt;- data.frame(
+  t = source_t,
+  w = w_opt
+)
+
+df_target &lt;- data.frame(t = target_t)
+
+source_target &lt;- ggplot() +
+  geom_density(data = df_target, aes(x = t, color = &quot;Target&quot;)) +
+  geom_density(data = df_source_weighted, aes(x = t, color = &quot;Source&quot;)) +
+  scale_color_manual(
+    name   = &quot;distribution&quot;,  # this is the legend title
+    values = c(&quot;Target&quot; = &quot;blue&quot;,
+               &quot;Source&quot; = &quot;red&quot;)
+  ) +
+  labs(x = &quot;t&quot;, y = &quot;Density&quot;, title = &quot;Target vs Source Distribution&quot;) +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size = 6),  # Smaller legend title
+    legend.text  = element_text(size = 6)    # Smaller legend text
+  )
+
+estimation_true &lt;- ggplot() +
+  geom_density(data = df_source_weighted, aes(x = t, weight = w, color = &quot;Weighted Source&quot;), adjust = 1.5) +
+  geom_density(data = df_target, aes(x = t, color = &quot;Target&quot;), adjust = 1.5) +
+  scale_color_manual(
+    name = &quot;Distribution&quot;,
+    values = c(&quot;Weighted Source&quot; = &quot;red&quot;, &quot;Target&quot; = &quot;blue&quot;)
+  ) +
+  labs(
+    x = &quot;t&quot;,
+    y = &quot;Density&quot;,
+    title = &quot;Weighted Source vs. Target Distribution&quot;
+  ) +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size = 6),  # Smaller legend title
+    legend.text  = element_text(size = 6)    # Smaller legend text
+  )
+
+grid.arrange(source_target, estimation_true, ncol = 2)</code></pre>
+<p><img src="kernel_mean_matching_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
 </div>
 <div id="highlights" class="section level2">
 <h2>Highlights</h2>
+<ul>
+<li><p>In linear kernel, <span class="math inline">\(\Phi(x) =
+x\)</span>. So it’s reasonable to plot the raw input densities, but it’s
+also reasonable that they may not overlay perfectly. The real check is
+how well the weighted mean embeddings match(refer to <em>Code
+Appendix</em> section below)</p></li>
+<li><p>For definition of <em>kernel</em>, <em>universal kernel</em>,
+etc; refer back to our <a
+href="https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf">slide</a>.</p></li>
+</ul>
 </div>
 <div id="references" class="section level2">
 <h2>References</h2>
+<ul>
+<li>Wikipedia</li>
+</ul>
+</div>
+<div id="code-appendix" class="section level2">
+<h2>Code Appendix</h2>
+<p>Maximum Mean Discrepancy(MMD) gives a direct measure of how well
+Kernel Mean Matching (KMM) has aligned the mean embeddings in the
+feature space—even if the raw (weighted) distributions look different in
+input space.</p>
+<pre class="r"><code>compute_mmd2_weighted &lt;- function(X_source, w_opt, X_target, kernel_func, ...) {
+  n_s &lt;- nrow(X_source)
+  n_t &lt;- nrow(X_target)
+  
+  # Convert w -&gt; alpha, i.e. alpha_i = w_i / n_s
+  alpha &lt;- w_opt / n_s
+  
+  # For target, each sample has weight = 1/n_t
+  beta &lt;- rep(1 / n_t, n_t)
+  
+  # We&#39;ll compute the 3 sums in the MMD^2 formula:
+  # sum_{i,i&#39;} alpha_i alpha_i&#39; K(x_i, x_i&#39;)
+  # sum_{j,j&#39;} beta_j beta_j&#39; K(y_j, y_j&#39;)
+  # sum_{i,j} alpha_i beta_j K(x_i, y_j)
+  
+  # 1) Weighted source-source part
+  ss_sum &lt;- 0
+  for (i in 1:n_s) {
+    for (i2 in 1:n_s) {
+      ss_sum &lt;- ss_sum + alpha[i] * alpha[i2] * kernel_func(X_source[i,], X_source[i2,], ...)
+    }
+  }
+  
+  # 2) Weighted target-target part
+  tt_sum &lt;- 0
+  for (j in 1:n_t) {
+    for (j2 in 1:n_t) {
+      tt_sum &lt;- tt_sum + beta[j] * beta[j2] * kernel_func(X_target[j,], X_target[j2,], ...)
+    }
+  }
+  
+  # 3) Cross term: sum_{i,j} alpha_i beta_j K(x_i, y_j)
+  st_sum &lt;- 0
+  for (i in 1:n_s) {
+    for (j in 1:n_t) {
+      st_sum &lt;- st_sum + alpha[i] * beta[j] * kernel_func(X_source[i,], X_target[j,], ...)
+    }
+  }
+  
+  # MMD^2 = ss_sum + tt_sum - 2 * st_sum
+  mmd2 &lt;- ss_sum + tt_sum - 2 * st_sum
+  return(mmd2)
+}
+
+linear_kernel &lt;- function(x, y) {
+  sum(x * y)
+}
+
+mmd2_val &lt;- compute_mmd2_weighted(
+  X_source, w_opt, X_target,
+  kernel_func = linear_kernel
+)
+
+cat(&quot;MMD^2 between weighted source &amp; target = &quot;, mmd2_val, &quot;\n&quot;)</code></pre>
+<pre><code>## MMD^2 between weighted source &amp; target =  6.394885e-14</code></pre>
+<pre class="r"><code>cat(&quot;MMD = &quot;, sqrt(mmd2_val), &quot;\n&quot;)</code></pre>
+<pre><code>## MMD =  2.528811e-07</code></pre>
+<p>Since <span class="math inline">\(MMD^2\)</span>(=6.3948846^{-14}) is
+close to 0, we can say the weighted source and target distributions have
+very similar mean embeddings under the linear kernel.</p>
 </div>
 
 
