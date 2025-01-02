@@ -13,6 +13,8 @@ navbar:
           href: histogram_based_method.html
         - text: "Kernel Mean Matching"
           href: kernel_mean_matching.html
+        - text: "Discriminative Learning"
+          href: discriminative_learning.html
     - text: "Slide"
       href: https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf
   right:
