@@ -58,7 +58,7 @@ mix_2_gaussian <- function(n, means, sds) {
 }
 
 # Generate source and target t values
-source_t <- mix_2_gaussian(n_source, c(-4, 4), c(4, 4))  # Higher variance
+source_t <- mix_2_gaussian(n_source, c(-4, 4), c(2, 2))  # Higher variance
 target_t <- mix_2_gaussian(n_target, c(-4, 4), c(1, 1))  # Lower variance
 
 # Embed t into D dimensions

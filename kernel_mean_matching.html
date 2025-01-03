@@ -343,6 +343,9 @@ div.tocify {
     <li>
       <a href="kernel_mean_matching.html">Kernel Mean Matching</a>
     </li>
+    <li>
+      <a href="discriminative_learning.html">Discriminative Learning</a>
+    </li>
   </ul>
 </li>
 <li>
@@ -454,7 +457,7 @@ mix_2_gaussian &lt;- function(n, means, sds) {
 }
 
 # Generate source and target t values
-source_t &lt;- mix_2_gaussian(n_source, c(-4, 4), c(4, 4))  # Higher variance
+source_t &lt;- mix_2_gaussian(n_source, c(-4, 4), c(2, 2))  # Higher variance
 target_t &lt;- mix_2_gaussian(n_target, c(-4, 4), c(1, 1))  # Lower variance
 
 # Embed t into D dimensions
@@ -603,7 +606,7 @@ w_opt[w_opt &lt; 1e-12] &lt;- 0
 
 # Verify constraints
 cat(&quot;Sum of weights:&quot;, sum(w_opt), &quot;\n&quot;)  # Should be ~1</code></pre>
-<pre><code>## Sum of weights: 11.0475</code></pre>
+<pre><code>## Sum of weights: 14.00011</code></pre>
 <pre class="r"><code>cat(&quot;All weights &gt;= 0:&quot;, all(w_opt &gt;= 0), &quot;\n&quot;)  # Should be TRUE</code></pre>
 <pre><code>## All weights &gt;= 0: TRUE</code></pre>
 <pre class="r"><code>cat(&quot;All weights &lt;= B:&quot;, all(w_opt &lt;= B), &quot;\n&quot;)  # Should be TRUE</code></pre>
@@ -731,10 +734,10 @@ mmd2_val &lt;- compute_mmd2_weighted(
 )
 
 cat(&quot;MMD^2 between weighted source &amp; target = &quot;, mmd2_val, &quot;\n&quot;)</code></pre>
-<pre><code>## MMD^2 between weighted source &amp; target =  6.394885e-14</code></pre>
+<pre><code>## MMD^2 between weighted source &amp; target =  7.81597e-14</code></pre>
 <pre class="r"><code>cat(&quot;MMD = &quot;, sqrt(mmd2_val), &quot;\n&quot;)</code></pre>
-<pre><code>## MMD =  2.528811e-07</code></pre>
-<p>Since <span class="math inline">\(MMD^2\)</span>(=6.3948846^{-14}) is
+<pre><code>## MMD =  2.795706e-07</code></pre>
+<p>Since <span class="math inline">\(MMD^2\)</span>(=7.8159701^{-14}) is
 close to 0, we can say the weighted source and target distributions have
 very similar mean embeddings under the linear kernel.</p>
 </div>
