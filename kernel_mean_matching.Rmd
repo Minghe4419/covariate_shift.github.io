@@ -153,7 +153,7 @@ dvec <- (2 / n1) * k_vec
 # 2. 0 <= w_i <= B (inequality)
 
 # Define epsilon for the "soft" sum constraint
-epsilon <- 10  # for example
+epsilon <- 1  # for example
 
 # 0) We already have n1 = number of source samples,
 #    B = upper bound, from your existing code
