@@ -418,9 +418,164 @@ to reweight the source data then solve the ERM problem</p></li>
 </div>
 <div id="code-implementation" class="section level2">
 <h2>Code Implementation</h2>
+<pre class="r"><code># 1) Generate multi-Gaussian &quot;toy&quot; data
+set.seed(123)  # For reproducibility
+
+# Dimension
+D &lt;- 20
+v &lt;- seq_len(D)  # e.g. (1,2,...,20)
+
+# Number of samples
+n_source &lt;- 3000
+n_target &lt;- 3000
+
+# Mixture-of-2-Gaussians generator (1D t)
+mix_2_gaussian &lt;- function(n, means, sds) {
+  # randomly pick which component each point is from
+  comps &lt;- sample.int(2, size = n, replace = TRUE, prob = c(0.5, 0.5))
+  rnorm(n, mean = means[comps], sd = sds[comps])
+}
+
+# Source distribution: bigger variance
+source_t &lt;- mix_2_gaussian(n_source, c(-3, 7), c(4, 4))
+
+# Target distribution: smaller variance
+target_t &lt;- mix_2_gaussian(n_target, c(-3, 4), c(4, 3))
+
+# Convert scalar t -&gt; D-dim data: X = t * v
+X_source &lt;- outer(source_t, v)  # shape: n_source x D
+X_target &lt;- outer(target_t, v)  # shape: n_target x D
+
+# We&#39;ll keep track of &#39;t&#39; for plotting, but our classifier uses all D features.
+# 2) Build a combined dataset for classification
+#    label Z=0 =&gt; source, Z=1 =&gt; target
+
+df_source &lt;- data.frame(X_source)
+df_source$Z &lt;- 0
+df_source$tval &lt;- source_t  # for easy plotting later
+
+df_target &lt;- data.frame(X_target)
+df_target$Z &lt;- 1
+df_target$tval &lt;- target_t
+
+df_combined &lt;- rbind(df_source, df_target)
+# df_combined is now (n_source + n_target) rows, each row has D=20 features + Z label + tval
+
+# Shuffle rows (optional) to avoid any ordering artifacts
+df_combined &lt;- df_combined[sample(nrow(df_combined)), ]
+
+# 3) Estimate mixing proportions pi_0, pi_1
+
+n_total &lt;- n_source + n_target
+hat_pi0 &lt;- n_source / n_total
+hat_pi1 &lt;- n_target / n_total
+# Typically, pi_0 + pi_1 = 1.
+
+
+# 4) Step 1: Learn the propensity P(Z=1 | X=x)
+#    We&#39;ll do a logistic regression:
+#    Z ~ X1 + X2 + ... + X20
+
+# We&#39;ll name the feature columns conveniently for the formula
+feature_names &lt;- paste0(&quot;X&quot;, seq_len(D))
+names(df_combined)[1:D] &lt;- feature_names
+
+# Fit logistic regression
+model_prop &lt;- glm(
+  formula = as.formula(paste(&quot;Z ~&quot;, paste(feature_names, collapse = &quot;+&quot;))),
+  data    = df_combined,
+  family  = binomial(link = &quot;logit&quot;)
+)
+p_hat_all &lt;- predict(model_prop, newdata = df_combined, type = &quot;response&quot;)
+
+
+# So p_hat_all[i] = estimated probability that row i is from target
+df_combined$Z_pred &lt;- ifelse(p_hat_all &gt; 0.5, 1, 0)
+
+# 5) Step 2: define weights for *source* samples only
+#    w(x) = (hat_pi1 / hat_pi0) * [p(Z=0|x)/p(Z=1|x)] = (hat_pi1 / hat_pi0) * [(1-p)/(p)]
+
+# We&#39;ll store weights in a vector w_opt for source rows, zero for target
+w_opt &lt;- numeric(n_total)
+
+for (i in seq_len(n_total)) {
+  if (df_combined$Z[i] == 0) {
+    # Source sample
+    p1 &lt;- p_hat_all[i]            # p(Z=1|X)
+    p0 &lt;- 1 - p1                  # p(Z=0|X)
+    w_opt[i] &lt;- (hat_pi1 / hat_pi0) * (p0 / p1)
+  } else {
+    # Target sample =&gt; no reweighting needed =&gt; w=NA or 0
+    w_opt[i] &lt;- 0
+  }
+}
+
+df_combined$weight &lt;- w_opt
+
+
+# 6) Extract the &quot;weighted source&quot; subset for plotting
+
+# Because df_combined is shuffled, let&#39;s re-split
+df_source_new &lt;- subset(df_combined, Z == 0)
+df_target_new &lt;- subset(df_combined, Z == 1)
+
+# Weighted source =&gt; use df_source_new$tval as x, weight = df_source_new$weight
+# Target =&gt; no weighting needed, just df_target_new$tval
+
+# 7) Plot the distribution of (t) for Weighted Source vs. Target
+
+source_target &lt;- ggplot() +
+  geom_density(data = df_target, aes(x = tval, color = &quot;Target&quot;)) +
+  geom_density(data = df_source, aes(x = tval, color = &quot;Source&quot;)) +
+  scale_color_manual(
+    name   = &quot;distribution&quot;,  # this is the legend title
+    values = c(&quot;Target&quot; = &quot;blue&quot;,
+               &quot;Source&quot; = &quot;red&quot;)
+  ) +
+  labs(x = &quot;t&quot;, y = &quot;Density&quot;, title = &quot;Target vs Source Distribution&quot;) +
+  theme_minimal() +
+  theme(
+    legend.title = element_text(size = 6),  # Smaller legend title
+    legend.text  = element_text(size = 6)    # Smaller legend text
+  )
+
+estimation_true &lt;- ggplot() +
+  geom_density(
+    data = df_source_new,
+    aes(x = tval, weight = weight, color = &quot;Weighted Source&quot;),
+    adjust = 1.5
+  ) +
+  geom_density(
+    data = df_target_new,
+    aes(x = tval, color = &quot;Target&quot;),
+    adjust = 1.5
+  ) +
+  scale_color_manual(
+    name = &quot;Distribution&quot;,
+    values = c(&quot;Weighted Source&quot; = &quot;red&quot;, &quot;Target&quot; = &quot;blue&quot;)
+  ) +
+  labs(
+    x = &quot;t&quot;,
+    y = &quot;Density&quot;,
+    title = &quot;Discriminative Learning (Propensity Score) Reweighting&quot;,
+    subtitle = &quot;Comparing Weighted Source vs. Target&quot;
+  ) +
+  theme_minimal()
+
+grid.arrange(source_target, estimation_true, ncol = 2)</code></pre>
+<p><img src="discriminative_learning_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
 </div>
 <div id="highlights" class="section level2">
 <h2>Highlights</h2>
+<ul>
+<li><p>From the density plot, we can observe that the weighted source
+distribution aligns in shape with the target distribution, which can be
+consider as a successful reweighting outcome</p></li>
+<li><p>While our simple 1D toy example is convenient for illustration,
+its relative simplicity may fail to capture the nuanced performance
+gains that the complex discriminative learning method can achieve in
+higher-dimensional or less trivial domain-shift scenarios.</p></li>
+</ul>
 </div>
 <div id="references" class="section level2">
 <h2>References</h2>
