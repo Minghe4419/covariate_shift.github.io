@@ -613,15 +613,15 @@ cat(&quot;Sum of weights:&quot;, sum(w_opt), &quot;\n&quot;)  # Should be ~1</co
 <pre><code>## All weights &lt;= B: TRUE</code></pre>
 <pre class="r"><code># Visualization: Weighted Source vs. Target Distribution
 df_source_weighted &lt;- data.frame(
-  t = source_t,
+  source_t = source_t,
   w = w_opt
 )
 
-df_target &lt;- data.frame(t = target_t)
+df_target &lt;- data.frame(target_t = target_t)
 
 source_target &lt;- ggplot() +
-  geom_density(data = df_target, aes(x = t, color = &quot;Target&quot;)) +
-  geom_density(data = df_source_weighted, aes(x = t, color = &quot;Source&quot;)) +
+  geom_density(data = df_target, aes(x = target_t, color = &quot;Target&quot;)) +
+  geom_density(data = df_source_weighted, aes(x = source_t, color = &quot;Source&quot;)) +
   scale_color_manual(
     name   = &quot;distribution&quot;,  # this is the legend title
     values = c(&quot;Target&quot; = &quot;blue&quot;,
@@ -635,8 +635,8 @@ source_target &lt;- ggplot() +
   )
 
 estimation_true &lt;- ggplot() +
-  geom_density(data = df_source_weighted, aes(x = t, weight = w, color = &quot;Weighted Source&quot;), adjust = 1.5) +
-  geom_density(data = df_target, aes(x = t, color = &quot;Target&quot;), adjust = 1.5) +
+  geom_density(data = df_source_weighted, aes(x = source_t, weight = w, color = &quot;Weighted Source&quot;)) +
+  geom_density(data = df_target, aes(x = target_t, color = &quot;Target&quot;)) +
   scale_color_manual(
     name = &quot;Distribution&quot;,
     values = c(&quot;Weighted Source&quot; = &quot;red&quot;, &quot;Target&quot; = &quot;blue&quot;)
