@@ -196,10 +196,19 @@ estimations_df <- data.frame(
 
 ```{r}
 # Visualize estimation result
+
+# source dataframe
 df_t_w_source <- data.frame(
   t = source_t,
-  w = w_fun(source_t)
+  w = w_fun(source_t),
+  f = f_source(source_t)
 )
+
+# target dataframe
+target_f <- data.frame(
+  t = target_t,
+  f = f_target(target_t)
+) 
 
 source_target <- ggplot() +
   geom_density(data = df_target, aes(x = V1, color = "Target")) +
@@ -217,32 +226,51 @@ source_target <- ggplot() +
   )
 
 estimation_true <- ggplot() +
-  geom_point(
-    data = df_t_w_source,
-    aes(x = t, y = w, color = "True Weight"),
-    alpha = 0.3
-  ) +
-  # Estimated weight (red)
-  geom_point(
-    data = estimations_df,
-    aes(x = t, y = estimation, color = "Estimated Weight"),
-    alpha = 0.3
-  ) +
+  geom_density(data = df_t_w_source, aes(x = t, weight = w, color = "Weighted Source")) +
+  geom_density(data = target_f, aes(x = t, color = "Target")) +
   scale_color_manual(
-    name   = "weights",  # this is the legend title
-    values = c("True Weight" = "blue",
-               "Estimated Weight" = "red")
+    name = "Distribution",
+    values = c("Weighted Source" = "red", "Target" = "blue")
   ) +
   labs(
     x = "t",
-    y = "Weight",
-    title = "Estimated vs. True Density"
+    y = "Density",
+    title = "Weighted Source vs. Target Distribution"
   ) +
   theme_minimal() +
   theme(
-    legend.title = element_text(size = 7),  # Smaller legend title
-    legend.text  = element_text(size = 7)    # Smaller legend text
+    legend.title = element_text(size = 6),  # Smaller legend title
+    legend.text  = element_text(size = 6)    # Smaller legend text
   )
+
+
+# estimation_true <- ggplot() +
+#   geom_point(
+#     data = df_t_w_source,
+#     aes(x = t, y = w, color = "True Weight"),
+#     alpha = 0.3
+#   ) +
+#   # Estimated weight (red)
+#   geom_point(
+#     data = estimations_df,
+#     aes(x = t, y = estimation, color = "Estimated Weight"),
+#     alpha = 0.3
+#   ) +
+#   scale_color_manual(
+#     name   = "weights",  # this is the legend title
+#     values = c("True Weight" = "blue",
+#                "Estimated Weight" = "red")
+#   ) +
+#   labs(
+#     x = "t",
+#     y = "Weight",
+#     title = "Estimated vs. True Density"
+#   ) +
+#   theme_minimal() +
+#   theme(
+#     legend.title = element_text(size = 7),  # Smaller legend title
+#     legend.text  = element_text(size = 7)    # Smaller legend text
+#   )
 
 grid.arrange(source_target, estimation_true, ncol = 2)
 ```

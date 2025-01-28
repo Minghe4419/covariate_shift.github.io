@@ -585,10 +585,19 @@ estimations_df &lt;- data.frame(
   t          = test_estimations[, 2]
 )</code></pre>
 <pre class="r"><code># Visualize estimation result
+
+# source dataframe
 df_t_w_source &lt;- data.frame(
   t = source_t,
-  w = w_fun(source_t)
+  w = w_fun(source_t),
+  f = f_source(source_t)
 )
+
+# target dataframe
+target_f &lt;- data.frame(
+  t = target_t,
+  f = f_target(target_t)
+) 
 
 source_target &lt;- ggplot() +
   geom_density(data = df_target, aes(x = V1, color = &quot;Target&quot;)) +
@@ -606,32 +615,51 @@ source_target &lt;- ggplot() +
   )
 
 estimation_true &lt;- ggplot() +
-  geom_point(
-    data = df_t_w_source,
-    aes(x = t, y = w, color = &quot;True Weight&quot;),
-    alpha = 0.3
-  ) +
-  # Estimated weight (red)
-  geom_point(
-    data = estimations_df,
-    aes(x = t, y = estimation, color = &quot;Estimated Weight&quot;),
-    alpha = 0.3
-  ) +
+  geom_density(data = df_t_w_source, aes(x = t, weight = w, color = &quot;Weighted Source&quot;)) +
+  geom_density(data = target_f, aes(x = t, color = &quot;Target&quot;)) +
   scale_color_manual(
-    name   = &quot;weights&quot;,  # this is the legend title
-    values = c(&quot;True Weight&quot; = &quot;blue&quot;,
-               &quot;Estimated Weight&quot; = &quot;red&quot;)
+    name = &quot;Distribution&quot;,
+    values = c(&quot;Weighted Source&quot; = &quot;red&quot;, &quot;Target&quot; = &quot;blue&quot;)
   ) +
   labs(
     x = &quot;t&quot;,
-    y = &quot;Weight&quot;,
-    title = &quot;Estimated vs. True Density&quot;
+    y = &quot;Density&quot;,
+    title = &quot;Weighted Source vs. Target Distribution&quot;
   ) +
   theme_minimal() +
   theme(
-    legend.title = element_text(size = 7),  # Smaller legend title
-    legend.text  = element_text(size = 7)    # Smaller legend text
+    legend.title = element_text(size = 6),  # Smaller legend title
+    legend.text  = element_text(size = 6)    # Smaller legend text
   )
+
+
+# estimation_true &lt;- ggplot() +
+#   geom_point(
+#     data = df_t_w_source,
+#     aes(x = t, y = w, color = &quot;True Weight&quot;),
+#     alpha = 0.3
+#   ) +
+#   # Estimated weight (red)
+#   geom_point(
+#     data = estimations_df,
+#     aes(x = t, y = estimation, color = &quot;Estimated Weight&quot;),
+#     alpha = 0.3
+#   ) +
+#   scale_color_manual(
+#     name   = &quot;weights&quot;,  # this is the legend title
+#     values = c(&quot;True Weight&quot; = &quot;blue&quot;,
+#                &quot;Estimated Weight&quot; = &quot;red&quot;)
+#   ) +
+#   labs(
+#     x = &quot;t&quot;,
+#     y = &quot;Weight&quot;,
+#     title = &quot;Estimated vs. True Density&quot;
+#   ) +
+#   theme_minimal() +
+#   theme(
+#     legend.title = element_text(size = 7),  # Smaller legend title
+#     legend.text  = element_text(size = 7)    # Smaller legend text
+#   )
 
 grid.arrange(source_target, estimation_true, ncol = 2)</code></pre>
 <p><img src="histogram_based_method_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
