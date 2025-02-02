@@ -7,12 +7,85 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
 ```
 
 # Theoretical Background
+Inspired by the idea that MLE is equivalent to minimizing KL divergence:
+
+$KL(\mathbb{P}^{(0)}||\tilde{\mathbb{P}}^{(0)}) = \mathbb{E}_{X \sim \mathbb{P}^{(0)}}[log(\frac{d\mathbb{P}^{(0)}}{d\mathbb{P}^{(1)}}(X))] - \mathbb{E}_{X \sim \mathbb{P}^{(0)}}[log \hat{w}(X)]$
+
+We can estimate the density ratio $\hat{w}$ by minimizing KL divergence $D_{KL}$ (maximizing $\mathbb{E}_{X \sim \mathbb{P}^{(0)}}[log \hat{w}(X)]$).
+
+Estimator:
+
+$\hat{w} = \arg\max_{h: X \to \mathbb{R}_{+}}\{\mathbb{E}_{X \sim \hat{\mathbb{P}}^{(0)}}[log h(X)] - \mathbb{E}_{X \sim \hat{\mathbb{P}}^{(1)}}[h(X)]\}$
+
+In practice, we use a specific function class $\mathcal{G}$ (e.g. RKHS with a universal kernel)
+to estimate $h: X \to \mathbb{R}_{+}$
 
 # Implementation
+
+```{r}
+# To install 'densityratio' package, we need libraries:
+library(osqp)
+library(pbapply)
+library(RcppProgress)
+#install.packages('densityratio', repos = 'https://thomvolker.r-universe.dev')
+library(densityratio)
+
+head(numerator_data)
+
+
+fit_kliep <- kliep(
+  df_numerator = numerator_data$x5, 
+  df_denominator = denominator_data$x5
+)
+
+summary(fit_kliep)
+# Predict estimated density ratio
+pred_kliep  <- predict(fit_kliep, newdata = denominator_data$x5)
+summary(pred_kliep)
+# Function of true density ratio
+dbinorm <- function(x, p, dif) {
+  p * dnorm(x, 0, 1) + (1 - p) * dnorm(x, dif, 1)
+}
+dbinorm_scaled <- function(x, scaling, ...) {
+  dbinorm(x, ...) * scaling
+}
+dnorm_scaled <- function(x, scaling, ...) {
+  dnorm(x, ...) * scaling
+}
+
+dratio_kliep <- function(x, p, dif, mu, sd) {
+  dbinorm(x, p, dif) / dnorm(x, mu, sd)
+}
+
+```
+
+```{r}
+ggplot() + 
+  geom_density(aes(x = numerator_data$x5, colour = "target")) +
+  geom_density(aes(x = denominator_data$x5, colour = "source"))
+
+ggplot() +
+  geom_density(aes(x = numerator_data$x5, color = "target")) +
+  geom_density(aes(x = denominator_data$x5, weight = as.numeric(pred_kliep), color = "weighted source"))
+
+
+ggplot() +
+  geom_point(aes(x = denominator_data$x5, y = pred_kliep, col = "estimates")) +
+  stat_function(mapping = aes(col = "True density ratio"), 
+                fun = dratio_kliep, 
+                args = list(p = 0.4, dif = 3, mu = 3, sd = 2),
+                linewidth = 1)
+  
+```
+
+
 
 # Highlights
 
 # References
+
+# Appendix
