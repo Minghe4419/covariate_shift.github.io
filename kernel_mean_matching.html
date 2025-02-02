@@ -346,6 +346,9 @@ div.tocify {
     <li>
       <a href="discriminative_learning.html">Discriminative Learning</a>
     </li>
+    <li>
+      <a href="kl_method.html">Kullback-Leibler method</a>
+    </li>
   </ul>
 </li>
 <li>
@@ -654,6 +657,85 @@ estimation_true &lt;- ggplot() +
 
 grid.arrange(source_target, estimation_true, ncol = 2)</code></pre>
 <p><img src="kernel_mean_matching_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<pre class="r"><code># To install &#39;densityratio&#39; package, we need libraries:
+library(osqp)
+library(pbapply)
+library(RcppProgress)
+#install.packages(&#39;densityratio&#39;, repos = &#39;https://thomvolker.r-universe.dev&#39;)
+library(densityratio)</code></pre>
+<pre><code>## Warning: package &#39;densityratio&#39; was built under R version 4.4.2</code></pre>
+<pre class="r"><code>D &lt;- 20
+v &lt;- seq_len(D)  # Example: v = (1, 2, ..., 20)
+
+# Number of samples
+n_source &lt;- 1000
+n_target &lt;- 1000
+
+# Function to generate mixture of Gaussians
+mix_2_gaussian &lt;- function(n, means, sds) {
+  comps &lt;- sample.int(2, size = n, replace = TRUE, prob = c(0.5, 0.5))
+  rnorm(n, mean = means[comps], sd = sds[comps])
+}
+
+# Generate source and target t values
+source_t &lt;- mix_2_gaussian(n_source, c(4, 7), c(1.5, 1.5))  # Higher variance
+target_t &lt;- mix_2_gaussian(n_target, c(4, 6), c(1, 1))  # Lower variance
+
+
+X_source &lt;- outer(source_t, v)  # n_source x D
+X_target &lt;- outer(target_t, v)  # n_target x D
+
+# Compute true density ratio
+dbinorm &lt;- function(x, p, dif1, dif2, sd) {
+  p * dnorm(x, dif1, sd) + (1 - p) * dnorm(x, dif2, sd)
+}
+dratio_kmm &lt;- function(x, p, dif1, dif2, sd1, p2, dif3, dif4, sd2) {
+  dbinorm(x, p, dif1, dif2, sd1) / dbinorm(x, p2, dif3, dif4, sd2)
+}</code></pre>
+<pre class="r"><code>fit_kmm &lt;- kmm(
+  df_numerator = target_t, 
+  df_denominator = source_t
+)
+
+summary(fit_kmm)</code></pre>
+<pre><code>## 
+## Call:
+## kmm(df_numerator = target_t, df_denominator = source_t)
+## 
+## Kernel Information:
+##   Kernel type: Gaussian with L2 norm distances
+##   Number of kernels: 200
+## Optimal sigma: 1.307833
+## Optimal kernel weights: num [1:200, 1] 0.9197 -1.6075 1.1867 -0.0806 0.2369 ...
+##  
+## Pearson divergence between P(nu) and P(de): 0.1435
+## For a two-sample homogeneity test, use &#39;summary(x, test = TRUE)&#39;.</code></pre>
+<pre class="r"><code># Predict estimated density ratio
+pred_kmm  &lt;- predict(fit_kmm, newdata = source_t)
+summary(pred_kmm)</code></pre>
+<pre><code>##        V1          
+##  Min.   :-0.09143  
+##  1st Qu.: 0.51329  
+##  Median : 1.18927  
+##  Mean   : 0.99992  
+##  3rd Qu.: 1.46707  
+##  Max.   : 1.61229</code></pre>
+<pre class="r"><code>pred_kmm[pred_kmm&lt;0] &lt;- 0</code></pre>
+<pre class="r"><code>ggplot() + 
+  geom_density(aes(x = target_t, colour = &quot;target&quot;)) +
+  geom_density(aes(x = source_t, colour = &quot;source&quot;))</code></pre>
+<p><img src="kernel_mean_matching_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(x = target_t, color = &quot;target&quot;)) +
+  geom_density(aes(x = source_t, weight = as.numeric(pred_kmm), color = &quot;weighted source&quot;))</code></pre>
+<p><img src="kernel_mean_matching_files/figure-html/unnamed-chunk-4-2.png" width="672" /></p>
+<pre class="r"><code># dratio_kmm need adjustment
+# ggplot() +
+#   geom_point(aes(x = source_t, y = pred_kmm, col = &quot;estimates&quot;)) +
+#   stat_function(mapping = aes(col = &quot;True density ratio&quot;), 
+#                 fun = dratio_kmm, 
+#                 args = list(p = 0.5, dif1 = 4, dif2 = 7, sd1 = 1.5, p2 = 0.5, dif3 = 4, dif4 = 6, sd2 = 1),
+#                 linewidth = 1)</code></pre>
 </div>
 <div id="highlights" class="section level2">
 <h2>Highlights</h2>
@@ -734,10 +816,10 @@ mmd2_val &lt;- compute_mmd2_weighted(
 )
 
 cat(&quot;MMD^2 between weighted source &amp; target = &quot;, mmd2_val, &quot;\n&quot;)</code></pre>
-<pre><code>## MMD^2 between weighted source &amp; target =  7.81597e-14</code></pre>
+<pre><code>## MMD^2 between weighted source &amp; target =  70986.77</code></pre>
 <pre class="r"><code>cat(&quot;MMD = &quot;, sqrt(mmd2_val), &quot;\n&quot;)</code></pre>
-<pre><code>## MMD =  2.795706e-07</code></pre>
-<p>Since <span class="math inline">\(MMD^2\)</span>(=7.8159701^{-14}) is
+<pre><code>## MMD =  266.4334</code></pre>
+<p>Since <span class="math inline">\(MMD^2\)</span>(=7.0986765^{4}) is
 close to 0, we can say the weighted source and target distributions have
 very similar mean embeddings under the linear kernel.</p>
 </div>

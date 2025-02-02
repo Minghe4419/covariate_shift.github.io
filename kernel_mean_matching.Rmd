@@ -255,6 +255,76 @@ grid.arrange(source_target, estimation_true, ncol = 2)
 
 ```
 
+```{r}
+# To install 'densityratio' package, we need libraries:
+library(osqp)
+library(pbapply)
+library(RcppProgress)
+#install.packages('densityratio', repos = 'https://thomvolker.r-universe.dev')
+library(densityratio)
+
+D <- 20
+v <- seq_len(D)  # Example: v = (1, 2, ..., 20)
+
+# Number of samples
+n_source <- 1000
+n_target <- 1000
+
+# Function to generate mixture of Gaussians
+mix_2_gaussian <- function(n, means, sds) {
+  comps <- sample.int(2, size = n, replace = TRUE, prob = c(0.5, 0.5))
+  rnorm(n, mean = means[comps], sd = sds[comps])
+}
+
+# Generate source and target t values
+source_t <- mix_2_gaussian(n_source, c(4, 7), c(1.5, 1.5))  # Higher variance
+target_t <- mix_2_gaussian(n_target, c(4, 6), c(1, 1))  # Lower variance
+
+
+X_source <- outer(source_t, v)  # n_source x D
+X_target <- outer(target_t, v)  # n_target x D
+
+# Compute true density ratio
+dbinorm <- function(x, p, dif1, dif2, sd) {
+  p * dnorm(x, dif1, sd) + (1 - p) * dnorm(x, dif2, sd)
+}
+dratio_kmm <- function(x, p, dif1, dif2, sd1, p2, dif3, dif4, sd2) {
+  dbinorm(x, p, dif1, dif2, sd1) / dbinorm(x, p2, dif3, dif4, sd2)
+}
+```
+
+```{r}
+fit_kmm <- kmm(
+  df_numerator = target_t, 
+  df_denominator = source_t
+)
+
+summary(fit_kmm)
+# Predict estimated density ratio
+pred_kmm  <- predict(fit_kmm, newdata = source_t)
+summary(pred_kmm)
+pred_kmm[pred_kmm<0] <- 0
+```
+
+
+```{r}
+ggplot() + 
+  geom_density(aes(x = target_t, colour = "target")) +
+  geom_density(aes(x = source_t, colour = "source"))
+
+ggplot() +
+  geom_density(aes(x = target_t, color = "target")) +
+  geom_density(aes(x = source_t, weight = as.numeric(pred_kmm), color = "weighted source"))
+
+# dratio_kmm need adjustment
+# ggplot() +
+#   geom_point(aes(x = source_t, y = pred_kmm, col = "estimates")) +
+#   stat_function(mapping = aes(col = "True density ratio"), 
+#                 fun = dratio_kmm, 
+#                 args = list(p = 0.5, dif1 = 4, dif2 = 7, sd1 = 1.5, p2 = 0.5, dif3 = 4, dif4 = 6, sd2 = 1),
+#                 linewidth = 1)
+```
+
 ## Highlights
 
 - In linear kernel, $\Phi(x) = x$. So it's reasonable to plot the raw input densities, but it's also reasonable that they may not overlay perfectly. The real check is how well the weighted mean embeddings match(refer to *Code Appendix* section below)
