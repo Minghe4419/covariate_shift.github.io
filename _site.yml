@@ -15,8 +15,10 @@ navbar:
           href: kernel_mean_matching.html
         - text: "Discriminative Learning"
           href: discriminative_learning.html
-        - text: "Kullback-Leibler method"
+        - text: "Kullback-Leibler Method"
           href: kl_method.html
+        - text: "Semi-parametric Method"
+          href: semi_parametric.html
     - text: "Slide"
       href: https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf
   right:
