@@ -12,3 +12,61 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Implementation
+
+```{r}
+# To install 'densityratio' package, we need libraries:
+library(osqp)
+library(pbapply)
+library(RcppProgress)
+#install.packages('densityratio', repos = 'https://thomvolker.r-universe.dev')
+library(densityratio)
+
+head(numerator_data)
+
+
+fit_ulsif <- ulsif(
+  df_numerator = numerator_data$x5, 
+  df_denominator = denominator_data$x5
+)
+
+summary(fit_ulsif)
+# Predict estimated density ratio
+pred_ulsif  <- predict(fit_ulsif, newdata = denominator_data$x5)
+summary(pred_ulsif)
+# Function of true density ratio
+dbinorm <- function(x, p, dif) {
+  p * dnorm(x, 0, 1) + (1 - p) * dnorm(x, dif, 1)
+}
+dbinorm_scaled <- function(x, scaling, ...) {
+  dbinorm(x, ...) * scaling
+}
+dnorm_scaled <- function(x, scaling, ...) {
+  dnorm(x, ...) * scaling
+}
+
+dratio_ulsif <- function(x, p, dif, mu, sd) {
+  dbinorm(x, p, dif) / dnorm(x, mu, sd)
+}
+
+```
+
+```{r}
+library(ggplot2)
+ggplot() + 
+  geom_density(aes(x = numerator_data$x5, colour = "target")) +
+  geom_density(aes(x = denominator_data$x5, colour = "source"))
+
+ggplot() +
+  geom_density(aes(x = numerator_data$x5, color = "target")) +
+  geom_density(aes(x = denominator_data$x5, weight = as.numeric(pred_ulsif), color = "weighted source"))
+
+
+ggplot() +
+  geom_point(aes(x = denominator_data$x5, y = pred_ulsif, col = "estimates")) +
+  stat_function(mapping = aes(col = "True density ratio"), 
+                fun = dratio_ulsif, 
+                args = list(p = 0.4, dif = 3, mu = 3, sd = 2),
+                linewidth = 1)
+  
+```
+
