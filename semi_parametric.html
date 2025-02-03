@@ -11,7 +11,7 @@
 
 
 
-<title>Kullback-Leibler method</title>
+<title>Semi-parametric Method</title>
 
 <script src="site_libs/header-attrs-2.28/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -385,119 +385,16 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Kullback-Leibler method</h1>
+<h1 class="title toc-ignore">Semi-parametric Method</h1>
 
 </div>
 
 
 <div id="theoretical-background" class="section level1">
 <h1>Theoretical Background</h1>
-<p>Inspired by the idea that MLE is equivalent to minimizing KL
-divergence:</p>
-<p><span
-class="math inline">\(KL(\mathbb{P}^{(0)}||\tilde{\mathbb{P}}^{(0)}) =
-\mathbb{E}_{X \sim
-\mathbb{P}^{(0)}}[log(\frac{d\mathbb{P}^{(0)}}{d\mathbb{P}^{(1)}}(X))] -
-\mathbb{E}_{X \sim \mathbb{P}^{(0)}}[log \hat{w}(X)]\)</span></p>
-<p>We can estimate the density ratio <span
-class="math inline">\(\hat{w}\)</span> by minimizing KL divergence <span
-class="math inline">\(D_{KL}\)</span> (maximizing <span
-class="math inline">\(\mathbb{E}_{X \sim \mathbb{P}^{(0)}}[log
-\hat{w}(X)]\)</span>).</p>
-<p>Estimator:</p>
-<p><span class="math inline">\(\hat{w} = \arg\max_{h: X \to
-\mathbb{R}_{+}}\{\mathbb{E}_{X \sim \hat{\mathbb{P}}^{(0)}}[log h(X)] -
-\mathbb{E}_{X \sim \hat{\mathbb{P}}^{(1)}}[h(X)]\}\)</span></p>
-<p>In practice, we use a specific function class <span
-class="math inline">\(\mathcal{G}\)</span> (e.g. RKHS with a universal
-kernel) to estimate <span class="math inline">\(h: X \to
-\mathbb{R}_{+}\)</span></p>
 </div>
 <div id="implementation" class="section level1">
 <h1>Implementation</h1>
-<pre class="r"><code># To install &#39;densityratio&#39; package, we need libraries:
-library(osqp)
-library(pbapply)
-library(RcppProgress)
-#install.packages(&#39;densityratio&#39;, repos = &#39;https://thomvolker.r-universe.dev&#39;)
-library(densityratio)</code></pre>
-<pre><code>## Warning: package &#39;densityratio&#39; was built under R version 4.4.2</code></pre>
-<pre class="r"><code>head(numerator_data)</code></pre>
-<pre><code>## # A tibble: 6 × 5
-##   x1    x2         x3     x4     x5
-##   &lt;fct&gt; &lt;fct&gt;   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;
-## 1 A     G1    -0.0299  0.967 -1.26 
-## 2 C     G1     2.29   -0.475  2.40 
-## 3 A     G1     1.37    0.577 -0.172
-## 4 B     G2     1.44   -0.193 -0.708
-## 5 A     G1     1.01    2.23   2.01 
-## 6 C     G2     1.83    0.762  3.71</code></pre>
-<pre class="r"><code>fit_kliep &lt;- kliep(
-  df_numerator = numerator_data$x5, 
-  df_denominator = denominator_data$x5
-)
-
-summary(fit_kliep)</code></pre>
-<pre><code>## 
-## Call:
-## kliep(df_numerator = numerator_data$x5, df_denominator = denominator_data$x5)
-## 
-## Kernel Information:
-##   Kernel type: Gaussian with L2 norm distances
-##   Number of kernels: 200
-## Optimal sigma: 0.4966072
-## Optimal kernel weights: num [1:200, 1] 0.00314 0.00963 0.0148 0.14714 0.11163 ...
-##  
-## Kullback-Leibler divergence between P(nu) and P(de): 0.2792
-## For a two-sample homogeneity test, use &#39;summary(x, test = TRUE)&#39;.</code></pre>
-<pre class="r"><code># Predict estimated density ratio
-pred_kliep  &lt;- predict(fit_kliep, newdata = denominator_data$x5)
-summary(pred_kliep)</code></pre>
-<pre><code>##        V1          
-##  Min.   :0.000006  
-##  1st Qu.:0.503094  
-##  Median :1.013430  
-##  Mean   :1.000000  
-##  3rd Qu.:1.269022  
-##  Max.   :3.244086</code></pre>
-<pre class="r"><code># Function of true density ratio
-dbinorm &lt;- function(x, p, dif) {
-  p * dnorm(x, 0, 1) + (1 - p) * dnorm(x, dif, 1)
-}
-dbinorm_scaled &lt;- function(x, scaling, ...) {
-  dbinorm(x, ...) * scaling
-}
-dnorm_scaled &lt;- function(x, scaling, ...) {
-  dnorm(x, ...) * scaling
-}
-
-dratio_kliep &lt;- function(x, p, dif, mu, sd) {
-  dbinorm(x, p, dif) / dnorm(x, mu, sd)
-}</code></pre>
-<pre class="r"><code>ggplot() + 
-  geom_density(aes(x = numerator_data$x5, colour = &quot;target&quot;)) +
-  geom_density(aes(x = denominator_data$x5, colour = &quot;source&quot;))</code></pre>
-<p><img src="kl_method_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
-<pre class="r"><code>ggplot() +
-  geom_density(aes(x = numerator_data$x5, color = &quot;target&quot;)) +
-  geom_density(aes(x = denominator_data$x5, weight = as.numeric(pred_kliep), color = &quot;weighted source&quot;))</code></pre>
-<p><img src="kl_method_files/figure-html/unnamed-chunk-2-2.png" width="672" /></p>
-<pre class="r"><code>ggplot() +
-  geom_point(aes(x = denominator_data$x5, y = pred_kliep, col = &quot;estimates&quot;)) +
-  stat_function(mapping = aes(col = &quot;True density ratio&quot;), 
-                fun = dratio_kliep, 
-                args = list(p = 0.4, dif = 3, mu = 3, sd = 2),
-                linewidth = 1)</code></pre>
-<p><img src="kl_method_files/figure-html/unnamed-chunk-2-3.png" width="672" /></p>
-</div>
-<div id="highlights" class="section level1">
-<h1>Highlights</h1>
-</div>
-<div id="references" class="section level1">
-<h1>References</h1>
-</div>
-<div id="appendix" class="section level1">
-<h1>Appendix</h1>
 </div>
 
 
