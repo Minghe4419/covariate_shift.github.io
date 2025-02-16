@@ -347,7 +347,10 @@ div.tocify {
       <a href="discriminative_learning.html">Discriminative Learning</a>
     </li>
     <li>
-      <a href="kl_method.html">Kullback-Leibler method</a>
+      <a href="kl_method.html">Kullback-Leibler Method</a>
+    </li>
+    <li>
+      <a href="semi_parametric.html">Semi-parametric Method</a>
     </li>
   </ul>
 </li>
@@ -392,9 +395,170 @@ div.tocify {
 
 <div id="theoretical-background" class="section level1">
 <h1>Theoretical Background</h1>
+<ul>
+<li><p>Profile empirical log-likelihood ratio function: <span
+class="math inline">\(l(\theta, \lambda) = - \sum_{k=0}^{1}
+\sum_{i=1}^{n_k} log [1 + \lambda(g(x^{(k)}_i ; \theta) + 1)] +
+\sum_{i=1}^{n_1} log g(x^{(1)}_i ; \theta)\)</span></p></li>
+<li><p>Estimation:</p>
+<p><strong>step1</strong>: Let <span
+class="math inline">\(\frac{dl}{d\theta} = \frac{dl}{d\lambda} = 0
+\Rightarrow (\hat{\theta}. \hat{\lambda})\)</span></p>
+<p><strong>step2</strong>: Estimate density ratio: <span
+class="math inline">\(\hat{w} = \hat{g}(x;
+\hat{\theta})\)</span></p></li>
+</ul>
+<p>When implementing step1 in practice, the estimated parameters are
+very likely to be <code>Inf</code> due to the log term and exponential
+tilting link function <span class="math inline">\(g(x; \theta)\)</span>
+Profile log-likelihood function.</p>
 </div>
 <div id="implementation" class="section level1">
 <h1>Implementation</h1>
+<pre class="r"><code># To load &#39;densityratio&#39;, we need 3 libraries:
+library(osqp)
+library(pbapply)
+library(RcppProgress)
+#install.packages(&#39;densityratio&#39;, repos = &#39;https://thomvolker.r-universe.dev&#39;)
+library(densityratio)</code></pre>
+<pre><code>## Warning: package &#39;densityratio&#39; was built under R version 4.4.2</code></pre>
+<pre class="r"><code>##############################################################
+# Example: Exponential Tilting to Estimate a Density Ratio
+##############################################################
+
+# (1) Suppose we have 1D data
+set.seed(123)
+
+n_source &lt;- 500
+n_target &lt;- 500
+X_source &lt;- rbeta(n_source, shape1 = 2, shape2 = 2)
+X_target &lt;- runif(n_target, min = 0, max = 1)
+
+
+combined_df &lt;- data.frame(
+  target = X_target, 
+  source = X_source
+)
+
+# (2) Define the link function g(x; beta) = exp(beta0 + beta1*x).
+g_fun &lt;- function(x, param) {
+  beta1 &lt;- param[1]
+  beta2 &lt;- param[2]
+  alpha &lt;- param[3]
+  # you could also add more terms or expansions of x
+  return(exp(alpha + beta1 * log(x) + beta2 * log(1 - x)) )
+}
+
+# (3) Define the objective function 
+# We&#39;ll implement the NEGATIVE of this, so we can use &#39;optim&#39; (which by default MINIMIZES the objective).
+loglik_qin &lt;- function(param, X_source, X_target) {
+  lambda &lt;- param[4]
+  
+  # Possibly print for debugging:
+  # cat(&quot;beta0=&quot;,beta0,&quot;beta1=&quot;,beta1,&quot;lambda=&quot;,lambda,&quot;\n&quot;)
+  
+  g_target &lt;- g_fun(X_target, param)
+  g_source &lt;- g_fun(X_source, param)
+
+  # Check domain
+  arg_target &lt;- 1 + lambda * (g_target + 1)
+  arg_source &lt;- 1 + lambda * (g_source + 1)
+  
+  if (any(!is.finite(arg_target)) || any(!is.finite(arg_source))) {
+  # We have Inf or NaN in arg_target or arg_source
+  return(Inf)
+}
+
+  if (any(arg_target &lt;= 0) || any(arg_source &lt;= 0)) {
+    # cat(&quot;Invalid log argument\n&quot;)
+    return(Inf)
+  }
+
+  # Then do your sums:
+  eps &lt;- 1e-12
+  term_target       &lt;- sum(log(arg_target + eps))
+  term_source_part1 &lt;- sum(log(arg_source + eps))
+  term_source_part2 &lt;- sum(log(g_source + eps))
+  
+  # Negative log-likelihood or similar
+  val &lt;-  term_target + term_source_part1 - term_source_part2
+
+  # Check if final is finite
+  if(!is.finite(val)) {
+    # cat(&quot;Non-finite final val!\n&quot;)
+    return(Inf)
+  }
+
+  return(val)
+}
+
+
+init_param &lt;- c(beta1 = 1, beta2 = 1, alpha = 1.792, lambda = 0.03)
+
+val &lt;- loglik_qin(init_param, X_source, X_target)
+
+cat(&quot;Function value at initial guess:&quot;, val, &quot;\n&quot;)</code></pre>
+<pre><code>## Function value at initial guess: 2.241607</code></pre>
+<pre class="r"><code>cat(&quot;Is it finite?&quot;, is.finite(val), &quot;\n&quot;)</code></pre>
+<pre><code>## Is it finite? TRUE</code></pre>
+<pre class="r"><code># (4) We&#39;ll define a function to do the optimization
+qin_fit &lt;- function(X_source, X_target) {
+  init_param &lt;- c(beta1 = 1, beta2 = 1, alpha = 1.792, lambda = 0.03)
+  
+  fit &lt;- optim(
+    par       = init_param,
+    fn        = loglik_qin,  # Minimizing NEG log-likelihood
+    X_source  = X_source,
+    X_target  = X_target,
+    method    = &quot;BFGS&quot;,
+    control   = list(maxit=5),
+    hessian   = FALSE
+  )
+  
+  return(fit)
+}
+
+# (5) Run the fit
+fit_result &lt;- qin_fit(X_source, X_target)
+fit_result</code></pre>
+<pre><code>## $par
+##      beta1      beta2      alpha     lambda 
+##  0.9352657  0.9303220  1.8732114 -0.3181474 
+## 
+## $value
+## [1] -1666.172
+## 
+## $counts
+## function gradient 
+##       33        5 
+## 
+## $convergence
+## [1] 1
+## 
+## $message
+## NULL</code></pre>
+<pre class="r"><code># (6) Extract the parameter estimates
+beta1_hat &lt;- fit_result$par[1]
+beta2_hat &lt;- fit_result$par[2]
+alpha_hat &lt;- fit_result$par[3]
+
+
+# (7) Define the estimated ratio function w_hat(x)
+w_hat &lt;- function(x) {
+  exp(alpha_hat + beta1_hat * log(x) + beta2_hat * log(1-x))  # g_fun(x, c(beta0_hat, beta1_hat))
+}
+
+# Now you can use w_hat(x) to reweight X_source or for any purpose.
+weights &lt;- w_hat(X_source)</code></pre>
+<pre class="r"><code>library(ggplot2)
+ggplot() + 
+  geom_density(aes(x = X_target, colour = &quot;target&quot;)) +
+  geom_density(aes(x = X_source, colour = &quot;source&quot;))</code></pre>
+<p><img src="semi_parametric_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(x = X_target, color = &quot;target&quot;)) +
+  geom_density(aes(x = X_source, weight = weights, color = &quot;weighted source&quot;))</code></pre>
+<p><img src="semi_parametric_files/figure-html/unnamed-chunk-3-2.png" width="672" /></p>
 </div>
 
 
