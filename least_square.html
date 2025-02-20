@@ -426,17 +426,17 @@ summary(fit_ulsif)</code></pre>
 ##   Kernel type: Gaussian with L2 norm distances
 ##   Number of kernels: 200
 ## 
-## Optimal sigma: 0.5083235
+## Optimal sigma: 0.4952523
 ## Optimal lambda: 0.078476
-## Optimal kernel weights: num [1:201] 0.17583 0.012349 0.010007 0.014724 -0.000875 ...
+## Optimal kernel weights: num [1:201] 0.22613 -0.02426 0.01575 0.20914 0.00276 ...
 ##  
-## Pearson divergence between P(nu) and P(de): 0.2849
+## Pearson divergence between P(nu) and P(de): 0.281
 ## For a two-sample homogeneity test, use &#39;summary(x, test = TRUE)&#39;.</code></pre>
 <pre class="r"><code># Predict estimated density ratio
 pred_ulsif  &lt;- predict(fit_ulsif, newdata = denominator_data$x5)
 summary(pred_ulsif)</code></pre>
 <pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-## 0.03559 0.48500 0.97464 0.98620 1.21521 3.61118</code></pre>
+## 0.01791 0.47442 0.97089 0.98225 1.21825 3.50805</code></pre>
 <pre class="r"><code># Function of true density ratio
 dbinorm &lt;- function(x, p, dif) {
   p * dnorm(x, 0, 1) + (1 - p) * dnorm(x, dif, 1)

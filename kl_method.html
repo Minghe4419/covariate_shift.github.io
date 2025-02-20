@@ -347,7 +347,10 @@ div.tocify {
       <a href="discriminative_learning.html">Discriminative Learning</a>
     </li>
     <li>
-      <a href="kl_method.html">Kullback-Leibler method</a>
+      <a href="kl_method.html">Kullback-Leibler Method</a>
+    </li>
+    <li>
+      <a href="semi_parametric.html">Semi-parametric Method</a>
     </li>
   </ul>
 </li>
@@ -445,21 +448,21 @@ summary(fit_kliep)</code></pre>
 ## Kernel Information:
 ##   Kernel type: Gaussian with L2 norm distances
 ##   Number of kernels: 200
-## Optimal sigma: 0.4966072
-## Optimal kernel weights: num [1:200, 1] 0.00314 0.00963 0.0148 0.14714 0.11163 ...
+## Optimal sigma: 0.4990782
+## Optimal kernel weights: num [1:200, 1] 0.0275 0 0 0 0.0261 ...
 ##  
-## Kullback-Leibler divergence between P(nu) and P(de): 0.2792
+## Kullback-Leibler divergence between P(nu) and P(de): 0.2771
 ## For a two-sample homogeneity test, use &#39;summary(x, test = TRUE)&#39;.</code></pre>
 <pre class="r"><code># Predict estimated density ratio
 pred_kliep  &lt;- predict(fit_kliep, newdata = denominator_data$x5)
 summary(pred_kliep)</code></pre>
-<pre><code>##        V1          
-##  Min.   :0.000006  
-##  1st Qu.:0.503094  
-##  Median :1.013430  
-##  Mean   :1.000000  
-##  3rd Qu.:1.269022  
-##  Max.   :3.244086</code></pre>
+<pre><code>##        V1           
+##  Min.   :0.0000083  
+##  1st Qu.:0.5014463  
+##  Median :1.0145162  
+##  Mean   :1.0000000  
+##  3rd Qu.:1.2755829  
+##  Max.   :3.1155854</code></pre>
 <pre class="r"><code># Function of true density ratio
 dbinorm &lt;- function(x, p, dif) {
   p * dnorm(x, 0, 1) + (1 - p) * dnorm(x, dif, 1)

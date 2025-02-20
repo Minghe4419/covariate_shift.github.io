@@ -425,12 +425,14 @@ library(densityratio)</code></pre>
 <pre class="r"><code>##############################################################
 # Example: Exponential Tilting to Estimate a Density Ratio
 ##############################################################
-
+# X_target &lt;- numerator_data$x5
+# X_source &lt;- denominator_data$x5
 # (1) Suppose we have 1D data
 set.seed(123)
 
 n_source &lt;- 500
 n_target &lt;- 500
+
 X_source &lt;- rbeta(n_source, shape1 = 2, shape2 = 2)
 X_target &lt;- runif(n_target, min = 0, max = 1)
 
@@ -511,7 +513,7 @@ qin_fit &lt;- function(X_source, X_target) {
     X_source  = X_source,
     X_target  = X_target,
     method    = &quot;BFGS&quot;,
-    control   = list(maxit=5),
+    control   = list(maxit=1),
     hessian   = FALSE
   )
   
@@ -522,15 +524,15 @@ qin_fit &lt;- function(X_source, X_target) {
 fit_result &lt;- qin_fit(X_source, X_target)
 fit_result</code></pre>
 <pre><code>## $par
-##      beta1      beta2      alpha     lambda 
-##  0.9352657  0.9303220  1.8732114 -0.3181474 
+##       beta1       beta2       alpha      lambda 
+##  0.97594298  0.97367968  1.82201312 -0.09643657 
 ## 
 ## $value
-## [1] -1666.172
+## [1] -333.0654
 ## 
 ## $counts
 ## function gradient 
-##       33        5 
+##        8        2 
 ## 
 ## $convergence
 ## [1] 1
@@ -547,7 +549,7 @@ alpha_hat &lt;- fit_result$par[3]
 w_hat &lt;- function(x) {
   exp(alpha_hat + beta1_hat * log(x) + beta2_hat * log(1-x))  # g_fun(x, c(beta0_hat, beta1_hat))
 }
-
+w &lt;- exp(1.792 + 1 * log(X_source) + 1 * log(1-X_source))
 # Now you can use w_hat(x) to reweight X_source or for any purpose.
 weights &lt;- w_hat(X_source)</code></pre>
 <pre class="r"><code>library(ggplot2)
@@ -559,6 +561,10 @@ ggplot() +
   geom_density(aes(x = X_target, color = &quot;target&quot;)) +
   geom_density(aes(x = X_source, weight = weights, color = &quot;weighted source&quot;))</code></pre>
 <p><img src="semi_parametric_files/figure-html/unnamed-chunk-3-2.png" width="672" /></p>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(x = X_target, color = &quot;target&quot;)) +
+  geom_density(aes(x = X_source, weight = w, color = &quot;weighted source&quot;))</code></pre>
+<p><img src="semi_parametric_files/figure-html/unnamed-chunk-3-3.png" width="672" /></p>
 </div>
 
 
