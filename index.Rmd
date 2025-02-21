@@ -22,5 +22,5 @@ _“MLE is all you need for well-specified covariate shift.”_ – [Ge et al. (
 
 - [Empirical Risk Minimization(ERM)](https://en.wikipedia.org/wiki/Empirical_risk_minimization): a principle where the goal is to select a model that minimizes the average loss calculated on a given training dataset(or the expectation with respect to the empirical measure).
 
-  Risk $R^{(k)}(h) = \mathbb{E}_{X, Y \sim P^{k}}[l(h(X), Y)], h \in \mathcal{H}$ where $h$ is a hypothesis, $\mathcal{H}$ is hypothesis class(can be Hilbert Space in our case).
+  Risk $R^{(k)}(h) = \mathbb{E}_{X, Y \sim P^{k}}[l(h(X), Y)], h \in \mathcal{H}$ where $h$ is a hypothesis, $\mathcal{H}$ is hypothesis class(can be Reproducing Kernel Hilbert Space in our cases).
 
