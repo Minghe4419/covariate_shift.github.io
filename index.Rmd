@@ -10,7 +10,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Come back here when get lost in methods
+### Come back here when get lost📍
 
 - **Covariate Shift** is a specific type of dataset shift often encountered in machine learning. It is when the distribution of input data shifts between the training environment and live environment.
 
@@ -23,4 +23,14 @@ _“MLE is all you need for well-specified covariate shift.”_ – [Ge et al. (
 - [Empirical Risk Minimization(ERM)](https://en.wikipedia.org/wiki/Empirical_risk_minimization): a principle where the goal is to select a model that minimizes the average loss calculated on a given training dataset(or the expectation with respect to the empirical measure).
 
   Risk $R^{(k)}(h) = \mathbb{E}_{X, Y \sim P^{k}}[l(h(X), Y)], h \in \mathcal{H}$ where $h$ is a hypothesis, $\mathcal{H}$ is hypothesis class(can be Reproducing Kernel Hilbert Space in our cases).
+  
+  
+### Helpful resources🔧
 
+  - [densityratio](https://github.com/thomvolker/densityratio.git): kernel based methods to estimate weights
+  
+  - [domainbed](https://github.com/facebookresearch/DomainBed.git): PyTorch suite containing benchmark datasets and algorithms for domain generalization by Meta
+
+  - [MBDG algorithm](https://github.com/arobey1/mbdg.git): Algorithm of Model Based Domain Generalization (in Python)
+  
+  - [POT](https://pythonot.github.io/index.html): Python Optimal Transportation package
