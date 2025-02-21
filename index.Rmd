@@ -10,7 +10,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Definitions
+### Come back here when get lost in methods
 
 - **Covariate Shift** is a specific type of dataset shift often encountered in machine learning. It is when the distribution of input data shifts between the training environment and live environment.
 
