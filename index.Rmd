@@ -10,10 +10,15 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-### Intro
+### Definitions
 
 - **Covariate Shift** is a specific type of dataset shift often encountered in machine learning. It is when the distribution of input data shifts between the training environment and live environment.
 
 - [Maximum Likelihood Estimation(MLE)](https://en.wikipedia.org/wiki/Maximum_likelihood_estimation) is a method of estimating the parameters of an assumed probability distribution, given some observed data.
 
 _“MLE is all you need for well-specified covariate shift.”_ – [Ge et al. (2024)](https://arxiv.org/abs/2311.15961)
+
+- [Domain](https://en.wikipedia.org/wiki/Domain_adaptation): a joint distribution P(X, Y) over X × Y.
+
+- [Empirical Risk Minimization(ERM)](https://en.wikipedia.org/wiki/Empirical_risk_minimization): a principle where the goal is to select a model that minimizes the average loss calculated on a given training dataset(or the expectation with respect to the empirical measure).
+
