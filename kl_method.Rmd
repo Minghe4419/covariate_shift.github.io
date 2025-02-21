@@ -88,6 +88,8 @@ ggplot() +
 
 # Highlights
 
+We use R packages 'densityratio' which contains sample data and kernel-based density ratio estimation methods.
+
 # References
 
-# Appendix
+- https://github.com/thomvolker/densityratio.git
