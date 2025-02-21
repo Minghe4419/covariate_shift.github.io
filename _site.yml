@@ -27,5 +27,4 @@ navbar:
     - icon: fa-github fa-lg
       href: https://github.com/Minghe4419/covariate_shift.github.io
 output:
-  html_document:
-    theme: readable
+  html_document
