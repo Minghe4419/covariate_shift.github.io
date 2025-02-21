@@ -19,6 +19,10 @@ navbar:
           href: kl_method.html
         - text: "Semi-parametric Method"
           href: semi_parametric.html
+        - text: "Least Square Method"
+          href: least_square.html
+        - text: "Domain Generaization"
+          href: domain_generalization.html
     - text: "Slide"
       href: https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf
   right:
