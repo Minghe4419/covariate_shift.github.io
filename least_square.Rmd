@@ -13,6 +13,23 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Theoretical Background
 
+Intuition: 
+
+- ERM $E_{(X,Y)\sim \mathbb{P}^{(0)}}[l(\hat{h}(X), Y)] \leq min E_{(X,Y)\sim \mathbb{P}^{(1)}}[w(X)l(h(X), Y)] + O_{\mathbb{P}}(1) + 2CE_{X\sim \hat{\mathbb{P}^{(1)}}}|\hat{w}(X) - w(X)|$
+
+- Goal: find $\hat{w}(X)$ that minimizes the cost of weight estimation term $2CE_{X\sim \hat{\mathbb{P}^{(1)}}}|\hat{w}(X) - w(X)|$
+
+Estimator:
+
+- Formulate our goal into: 
+
+  $min_{\alpha \in R^b} \frac{1}{2} \alpha^{T} \hat{H}\alpha - \hat{h}^{T} \alpha + \lambda 1_{b}^{T} \alpha$
+
+  $s.t. \alpha \geq 0_{b}$ in constrained case
+
+By [Kanamori et al. (2009)](), unconstrained method performed better than the constrained version in practice; there is a kernelized version w/ ridge penalty term as well.
+
+
 
 
 # Implementation
@@ -74,3 +91,8 @@ ggplot() +
   
 ```
 
+# Highlights
+
+# Reference
+
+- https://github.com/thomvolker/densityratio.git

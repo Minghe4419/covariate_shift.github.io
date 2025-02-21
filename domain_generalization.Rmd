@@ -1,0 +1,47 @@
+---
+title: "Beyond Density Ratio Estimation"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**Q:** Can we go **beyond the density ratio estimation** and the reweighting method in covariate shift or even more general distribution shift problems? 🧐
+
+**A:** Yes, there are:
+
+### Marginal transfer learning
+
+#### Theoretical Background
+
+#### Implementation
+
+- [one of the methods in domainbed](https://github.com/facebookresearch/DomainBed.git)
+
+#### Highlights
+
+### Domain-invariant(Model Based Domain Generalization)
+
+#### Theoretical Background
+
+#### Implementation
+
+- [MBDG Algorithm](https://github.com/arobey1/mbdg.git)
+
+#### Highlights
+
+### Transformation-based methods(Optimal Transportation)
+
+#### Theoretical Background
+
+#### Implementation
+
+- [POT package](https://pythonot.github.io/index.html)
+
+#### Highlights

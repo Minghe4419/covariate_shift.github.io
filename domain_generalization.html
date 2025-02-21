@@ -10,8 +10,9 @@
 
 
 
+<meta name="date" content="2025-02-20" />
 
-<title>Least Square Method</title>
+<title>Beyond Density Ratio Estimation</title>
 
 <script src="site_libs/header-attrs-2.28/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -388,121 +389,64 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Least Square Method</h1>
+<h1 class="title toc-ignore">Beyond Density Ratio Estimation</h1>
+<h4 class="date">2025-02-20</h4>
 
 </div>
 
 
-<div id="theoretical-background" class="section level1">
-<h1>Theoretical Background</h1>
-<p>Intuition:</p>
+<p><strong>Q:</strong> Can we go <strong>beyond the density ratio
+estimation</strong> and the reweighting method in covariate shift or
+even more general distribution shift problems? 🧐</p>
+<p><strong>A:</strong> Yes, there are:</p>
+<div id="marginal-transfer-learning" class="section level3">
+<h3>Marginal transfer learning</h3>
+<div id="theoretical-background" class="section level4">
+<h4>Theoretical Background</h4>
+</div>
+<div id="implementation" class="section level4">
+<h4>Implementation</h4>
 <ul>
-<li><p>ERM <span class="math inline">\(E_{(X,Y)\sim
-\mathbb{P}^{(0)}}[l(\hat{h}(X), Y)] \leq min E_{(X,Y)\sim
-\mathbb{P}^{(1)}}[w(X)l(h(X), Y)] + O_{\mathbb{P}}(1) + 2CE_{X\sim
-\hat{\mathbb{P}^{(1)}}}|\hat{w}(X) - w(X)|\)</span></p></li>
-<li><p>Goal: find <span class="math inline">\(\hat{w}(X)\)</span> that
-minimizes the cost of weight estimation term <span
-class="math inline">\(2CE_{X\sim \hat{\mathbb{P}^{(1)}}}|\hat{w}(X) -
-w(X)|\)</span></p></li>
+<li><a href="https://github.com/facebookresearch/DomainBed.git">one of
+the methods in domainbed</a></li>
 </ul>
-<p>Estimator:</p>
+</div>
+<div id="highlights" class="section level4">
+<h4>Highlights</h4>
+</div>
+</div>
+<div id="domain-invariantmodel-based-domain-generalization"
+class="section level3">
+<h3>Domain-invariant(Model Based Domain Generalization)</h3>
+<div id="theoretical-background-1" class="section level4">
+<h4>Theoretical Background</h4>
+</div>
+<div id="implementation-1" class="section level4">
+<h4>Implementation</h4>
 <ul>
-<li><p>Formulate our goal into:</p>
-<p><span class="math inline">\(min_{\alpha \in R^b} \frac{1}{2}
-\alpha^{T} \hat{H}\alpha - \hat{h}^{T} \alpha + \lambda 1_{b}^{T}
-\alpha\)</span></p>
-<p><span class="math inline">\(s.t. \alpha \geq 0_{b}\)</span> in
-constrained case</p></li>
+<li><a href="https://github.com/arobey1/mbdg.git">MBDG
+Algorithm</a></li>
 </ul>
-<p>By <a href="">Kanamori et al. (2009)</a>, unconstrained method
-performed better than the constrained version in practice; there is a
-kernelized version w/ ridge penalty term as well.</p>
 </div>
-<div id="implementation" class="section level1">
-<h1>Implementation</h1>
-<pre class="r"><code># To install &#39;densityratio&#39; package, we need libraries:
-library(osqp)
-library(pbapply)
-library(RcppProgress)
-#install.packages(&#39;densityratio&#39;, repos = &#39;https://thomvolker.r-universe.dev&#39;)
-library(densityratio)</code></pre>
-<pre><code>## Warning: package &#39;densityratio&#39; was built under R version 4.4.2</code></pre>
-<pre class="r"><code>head(numerator_data)</code></pre>
-<pre><code>## # A tibble: 6 × 5
-##   x1    x2         x3     x4     x5
-##   &lt;fct&gt; &lt;fct&gt;   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;
-## 1 A     G1    -0.0299  0.967 -1.26 
-## 2 C     G1     2.29   -0.475  2.40 
-## 3 A     G1     1.37    0.577 -0.172
-## 4 B     G2     1.44   -0.193 -0.708
-## 5 A     G1     1.01    2.23   2.01 
-## 6 C     G2     1.83    0.762  3.71</code></pre>
-<pre class="r"><code>fit_ulsif &lt;- ulsif(
-  df_numerator = numerator_data$x5, 
-  df_denominator = denominator_data$x5
-)
-
-summary(fit_ulsif)</code></pre>
-<pre><code>## 
-## Call:
-## ulsif(df_numerator = numerator_data$x5, df_denominator = denominator_data$x5)
-## 
-## Kernel Information:
-##   Kernel type: Gaussian with L2 norm distances
-##   Number of kernels: 200
-## 
-## Optimal sigma: 0.4787585
-## Optimal lambda: 0.078476
-## Optimal kernel weights: num [1:201] 0.24819 -0.00432 0.00207 -0.00767 -0.00632 ...
-##  
-## Pearson divergence between P(nu) and P(de): 0.2769
-## For a two-sample homogeneity test, use &#39;summary(x, test = TRUE)&#39;.</code></pre>
-<pre class="r"><code># Predict estimated density ratio
-pred_ulsif  &lt;- predict(fit_ulsif, newdata = denominator_data$x5)
-summary(pred_ulsif)</code></pre>
-<pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-## 0.03269 0.47268 0.96918 0.98052 1.22219 3.39784</code></pre>
-<pre class="r"><code># Function of true density ratio
-dbinorm &lt;- function(x, p, dif) {
-  p * dnorm(x, 0, 1) + (1 - p) * dnorm(x, dif, 1)
-}
-dbinorm_scaled &lt;- function(x, scaling, ...) {
-  dbinorm(x, ...) * scaling
-}
-dnorm_scaled &lt;- function(x, scaling, ...) {
-  dnorm(x, ...) * scaling
-}
-
-dratio_ulsif &lt;- function(x, p, dif, mu, sd) {
-  dbinorm(x, p, dif) / dnorm(x, mu, sd)
-}</code></pre>
-<pre class="r"><code>library(ggplot2)
-ggplot() + 
-  geom_density(aes(x = numerator_data$x5, colour = &quot;target&quot;)) +
-  geom_density(aes(x = denominator_data$x5, colour = &quot;source&quot;))</code></pre>
-<p><img src="least_square_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
-<pre class="r"><code>ggplot() +
-  geom_density(aes(x = numerator_data$x5, color = &quot;target&quot;)) +
-  geom_density(aes(x = denominator_data$x5, weight = as.numeric(pred_ulsif), color = &quot;weighted source&quot;))</code></pre>
-<p><img src="least_square_files/figure-html/unnamed-chunk-2-2.png" width="672" /></p>
-<pre class="r"><code>ggplot() +
-  geom_point(aes(x = denominator_data$x5, y = pred_ulsif, col = &quot;estimates&quot;)) +
-  stat_function(mapping = aes(col = &quot;True density ratio&quot;), 
-                fun = dratio_ulsif, 
-                args = list(p = 0.4, dif = 3, mu = 3, sd = 2),
-                linewidth = 1)</code></pre>
-<p><img src="least_square_files/figure-html/unnamed-chunk-2-3.png" width="672" /></p>
+<div id="highlights-1" class="section level4">
+<h4>Highlights</h4>
 </div>
-<div id="highlights" class="section level1">
-<h1>Highlights</h1>
 </div>
-<div id="reference" class="section level1">
-<h1>Reference</h1>
+<div id="transformation-based-methodsoptimal-transportation"
+class="section level3">
+<h3>Transformation-based methods(Optimal Transportation)</h3>
+<div id="theoretical-background-2" class="section level4">
+<h4>Theoretical Background</h4>
+</div>
+<div id="implementation-2" class="section level4">
+<h4>Implementation</h4>
 <ul>
-<li><a href="https://github.com/thomvolker/densityratio.git"
-class="uri">https://github.com/thomvolker/densityratio.git</a></li>
+<li><a href="https://pythonot.github.io/index.html">POT package</a></li>
 </ul>
+</div>
+<div id="highlights-2" class="section level4">
+<h4>Highlights</h4>
+</div>
 </div>
 
 
