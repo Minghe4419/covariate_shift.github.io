@@ -620,6 +620,31 @@ data</a> and <a
 href="https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf">worse
 smoothness problem(Page. 23)</a></p></li>
 </ul>
+<pre class="r"><code># Sample data
+set.seed(2)
+data &lt;- rnorm(100, mean = 5, sd = 1)
+bandw &lt;- 0.35
+# Plot histogram + KDE
+hist(data, breaks = 15, probability = TRUE,
+     col = rgb(0.8, 0.8, 1, 0.5),
+     main = &quot;Histogram vs Kernel Density&quot;,
+     xlab = &quot;X&quot;, border = &quot;white&quot;)
+
+# Add KDE line
+lines(density(data, bw=bandw), col = &quot;darkblue&quot;, lwd = 2)
+
+# Add KDE bumps for 10 data points
+sample_points &lt;- sort(sample(data, 10))
+bandwidth &lt;- bandw
+for (x0 in sample_points) {
+  curve(dnorm(x, mean = x0, sd = bandwidth)/length(data), 
+        add = TRUE, col = &quot;gray70&quot;, lty = 2)
+}
+
+legend(&quot;topright&quot;, legend = c(&quot;KDE&quot;, &quot;Histogram&quot;, &quot;Individual Kernels&quot;),
+       col = c(&quot;darkblue&quot;, rgb(0.8, 0.8, 1), &quot;gray70&quot;), 
+       lty = c(1, NA, 2), lwd = c(2, NA, 1), pch = c(NA, 15, NA), pt.cex = 2)</code></pre>
+<p><img src="separate_density_estimation_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
 </div>
 
 

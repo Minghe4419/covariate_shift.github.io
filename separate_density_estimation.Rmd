@@ -182,3 +182,31 @@ ggplot() +
 - Separate Density Estimation was introduced only to provide intuitions for importance weighting method that this weight refers to the ratio between probability of data points follows target and source distribution $\frac{p_T(X)}{p_S(X)}$.
 
 - This method is not practical because it suffers from [multivariate data](https://medium.com/data-science/kernel-density-estimator-for-multidimensional-data-3e78c9779ed8) and [worse smoothness problem(Page. 23)](https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf)
+
+```{r}
+# Sample data
+set.seed(2)
+data <- rnorm(100, mean = 5, sd = 1)
+bandw <- 0.35
+# Plot histogram + KDE
+hist(data, breaks = 15, probability = TRUE,
+     col = rgb(0.8, 0.8, 1, 0.5),
+     main = "Histogram vs Kernel Density",
+     xlab = "X", border = "white")
+
+# Add KDE line
+lines(density(data, bw=bandw), col = "darkblue", lwd = 2)
+
+# Add KDE bumps for 10 data points
+sample_points <- sort(sample(data, 10))
+bandwidth <- bandw
+for (x0 in sample_points) {
+  curve(dnorm(x, mean = x0, sd = bandwidth)/length(data), 
+        add = TRUE, col = "gray70", lty = 2)
+}
+
+legend("topright", legend = c("KDE", "Histogram", "Individual Kernels"),
+       col = c("darkblue", rgb(0.8, 0.8, 1), "gray70"), 
+       lty = c(1, NA, 2), lwd = c(2, NA, 1), pch = c(NA, 15, NA), pt.cex = 2)
+```
+
