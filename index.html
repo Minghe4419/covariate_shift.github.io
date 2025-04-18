@@ -16,7 +16,7 @@
 <script src="site_libs/header-attrs-2.28/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -348,6 +348,12 @@ div.tocify {
     <li>
       <a href="semi_parametric.html">Semi-parametric Method</a>
     </li>
+    <li>
+      <a href="least_square.html">Least Square Method</a>
+    </li>
+    <li>
+      <a href="domain_generalization.html">Domain Generaization</a>
+    </li>
   </ul>
 </li>
 <li>
@@ -381,8 +387,34 @@ div.tocify {
 </div>
 
 
+<p>It is the scenario when <span class="math inline">\(P_T(Y|X) =
+P_S(Y|X), P_T(X) \neq P_S(X)\)</span></p>
+<p><img src="Picture1.png" width="300px" height="150px"></p>
+<div id="importance-weighting-methods" class="section level3">
+<h3>Importance Weighting Methods</h3>
+<p>Separate Density Estimation</p>
+<ul>
+<li><p><a href="separate_density_estimation.html">Separate Kernel
+Density Estimation</a></p></li>
+<li><p><a href="histogram_based_method.html">Histogram-based
+Estimation</a></p></li>
+</ul>
+<p>Estimating Weight as a whole</p>
+<ul>
+<li><p><a href="kernel_mean_matching.html">Kernel Mean
+Matching</a></p></li>
+<li><p><a href="least_sqaure.html">Least Square Method</a></p></li>
+<li><p><a href="kl_method.html">Kullback-Leibler Method</a></p></li>
+<li><p><a href="discriminative_learning.html">Discriminative
+Learning</a></p></li>
+<li><p><a href="semi_parametric.html">Profile Likelihood
+Method</a></p></li>
+</ul>
+</div>
 <div id="come-back-here-when-get-lost" class="section level3">
 <h3>Come back here when get lost📍</h3>
+<iframe src="Covariate Shift_v3_pdf_version.pdf" width="90%" height="400px" style="border: none;">
+</iframe>
 <ul>
 <li><p><strong>Covariate Shift</strong> is a specific type of dataset
 shift often encountered in machine learning. It is when the distribution

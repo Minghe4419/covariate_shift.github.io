@@ -16,7 +16,7 @@
 <script src="site_libs/header-attrs-2.28/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/readable.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -352,6 +352,12 @@ div.tocify {
     <li>
       <a href="semi_parametric.html">Semi-parametric Method</a>
     </li>
+    <li>
+      <a href="least_square.html">Least Square Method</a>
+    </li>
+    <li>
+      <a href="domain_generalization.html">Domain Generaization</a>
+    </li>
   </ul>
 </li>
 <li>
@@ -398,30 +404,23 @@ div.tocify {
 <div id="estimator" class="section level3">
 <h3>Estimator</h3>
 <ul>
-<li><p>Goal: estimating <span class="math inline">\(w = f^{(0)} /
-f^{(1)}\)</span> from <span
+<li><p>Goal: estimating <span class="math inline">\(w =
+\frac{f^{Target}(X)}{f^{Source}(X)}\)</span> from <span
 class="math inline">\(\{x_{i^{(k)}}\}^{n_k}_{i=1}
 \overset{\mathrm{iid}}{\sim} f^{(k)}\)</span></p></li>
 <li><p>Estimator<a
 href="https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf">(Kpotufe,
 2017)</a>: <span class="math inline">\(\tilde{w} =
-\frac{\hat{\mathbb{P}}^{(0)}(B(x, r))}{\hat{\mathbb{P}}^{(1)}(B(x, r))}
-= \frac{n_{0}^{-1}\sum_{i=1}^{n_0}\mathbb{1}(||x - x_{i}^{(0)}||_2 \leq
-r)}{n_{1}^{-1}\sum_{i=1}^{n_1}\mathbb{1}(||x - x_{i}^{(1)}||_2 \leq
+\frac{\hat{\mathbb{P}}^{(T)}(B(x, r))}{\hat{\mathbb{P}}^{(S)}(B(x, r))}
+= \frac{n_{0}^{-1}\sum_{i=1}^{n_0}\mathbb{1}(||x - x_{i}^{(T)}||_2 \leq
+r)}{n_{1}^{-1}\sum_{i=1}^{n_1}\mathbb{1}(||x - x_{i}^{(S)}||_2 \leq
 r}\)</span>; <span class="math inline">\(\hat{w}(x) = \tilde{w}(x)
-\mathbb{1}(\hat{\mathbb{P}}^{(1)}(B(x, r)) \geq
+\mathbb{1}(\hat{\mathbb{P}}^{(S)}(B(x, r)) \geq
 \alpha)\)</span></p></li>
-<li><p>Theorem 3.4.1 <a
+<li><p>Optimal radius <span class="math inline">\(r\)</span> is found by
+a data driven algorithm in <a
 href="https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf">(Kpotufe,
-2017)</a>:</p>
-<p>With <span class="math inline">\(r\)</span> <span
-class="math inline">\(\asymp [\frac{log(n_0 \bigwedge n_{1})}{n_0
-\bigwedge n_1}]^{\frac{\beta}{2\beta + d}}\)</span>, <span
-class="math inline">\(\alpha \asymp \frac{log(n_0)}{n_0}\)</span>, we
-have:</p>
-<p><span class="math inline">\(\mathbb{E}_{X \sim \mathbb{P}^{(1)}}
-|\hat{w}(X) - w(X)| \lesssim_{\mathbb{P}}[\frac{log(n_0 \bigwedge
-n_{1})}{n_0 \bigwedge n_1}]^{\frac{\beta}{2\beta + d}}\)</span></p></li>
+2017)</a> Theorem 3.4.1</p></li>
 </ul>
 </div>
 <div id="assumptions" class="section level3">
@@ -441,6 +440,43 @@ x&#39;||_{2}^{\beta}\)</span> with <span class="math inline">\(\beta \in
 </div>
 <div id="implementation" class="section level2">
 <h2>Implementation</h2>
+<pre class="r"><code>library(ggplot2)
+
+# Example synthetic data
+set.seed(123)
+source_data &lt;- matrix(rnorm(100 * 2, mean = 0), ncol = 2)
+target_data &lt;- matrix(rnorm(50 * 2, mean = 1), ncol = 2)
+
+# Convert to data frames
+source_df &lt;- data.frame(x = source_data[,1], y = source_data[,2])
+target_df &lt;- data.frame(x = target_data[,1], y = target_data[,2])
+
+# Query point and radius
+x_query &lt;- c(1, 1)
+r &lt;- 1.0
+
+# Compute distances
+dist_source &lt;- sqrt(rowSums((source_data - matrix(x_query, nrow = nrow(source_data), ncol = 2, byrow = TRUE))^2))
+dist_target &lt;- sqrt(rowSums((target_data - matrix(x_query, nrow = nrow(target_data), ncol = 2, byrow = TRUE))^2))
+
+# Circle coordinates
+theta &lt;- seq(0, 2 * pi, length.out = 200)
+circle &lt;- data.frame(
+  x = x_query[1] + r * cos(theta),
+  y = x_query[2] + r * sin(theta)
+)
+
+# Plot with fixed aspect ratio
+ggplot() +
+  geom_point(data = source_df, aes(x = x, y = y), color = &#39;blue&#39;, alpha = 0.6) +
+  geom_point(data = target_df, aes(x = x, y = y), color = &#39;red&#39;, alpha = 0.6) +
+  geom_point(aes(x = x_query[1], y = x_query[2]), shape = 4, size = 5, stroke = 2) +
+  geom_path(data = circle, aes(x = x, y = y), linetype = &quot;dashed&quot;) +
+  coord_fixed() + 
+  theme_minimal() +
+  labs(title = &quot;w(X) = number of red dots / number of blue dots&quot;, subtitle = &quot;Red = Target, Blue = Source&quot;,
+       x = &quot;Feature 1&quot;, y = &quot;Feature 2&quot;)</code></pre>
+<p><img src="histogram_based_method_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
 <pre class="r"><code># ----------------------------
 # 1) Setup
 # ----------------------------
@@ -450,7 +486,7 @@ D &lt;- 20
 v &lt;- seq_len(D)  # v = (1, 2, ..., 20)
 
 n_source &lt;- 1000
-n_target &lt;- 1000
+n_target &lt;- 400
 
 # ----------------------------
 # 2) Define mixture distributions
@@ -474,7 +510,7 @@ mix_2_gaussian &lt;- function(n, means, sds) {
 # ----------------------------
 target_t &lt;- mix_2_gaussian(
   n    = n_target,
-  means = c(-4, 4),
+  means = c(-2, 4),
   sds   = c(1, 1)
 )
 
@@ -498,7 +534,7 @@ df_source &lt;- as.data.frame(X_source)
 # each lying on the line spanned by v (since x = t*v).
 
 f_target &lt;- function(t) {
-  0.5 * dnorm(t, mean = -4, sd = 1) +
+  0.5 * dnorm(t, mean = -2, sd = 1) +
   0.5 * dnorm(t, mean = 4,  sd = 1)
 }
 
@@ -514,7 +550,7 @@ w_fun &lt;- function(t) {
 <p>We generate multi-Gaussian distribution to simulate non-parametric
 data. Dimension of data <span class="math inline">\(d\)</span> is 20;
 sample size of target data <span class="math inline">\(n_0\)</span> is
-1000; and sample size of source data <span
+400; and sample size of source data <span
 class="math inline">\(n_1\)</span> is 1000.</p>
 <p>All the parameters we use are from <a
 href="https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf">Kpotufe(2017)</a>.</p>
@@ -610,8 +646,8 @@ source_target &lt;- ggplot() +
   geom_density(data = df_source, aes(x = V1, color = &quot;Source&quot;)) +
   scale_color_manual(
     name   = &quot;distribution&quot;,  # this is the legend title
-    values = c(&quot;Target&quot; = &quot;blue&quot;,
-               &quot;Source&quot; = &quot;red&quot;)
+    values = c(&quot;Target&quot; = &quot;red&quot;,
+               &quot;Source&quot; = &quot;blue&quot;)
   ) +
   labs(x = &quot;t&quot;, y = &quot;Density&quot;, title = &quot;Target vs Source Distribution&quot;) +
   theme_minimal() +
@@ -625,7 +661,7 @@ estimation_true &lt;- ggplot() +
   geom_density(data = target_f, aes(x = t, color = &quot;Target&quot;)) +
   scale_color_manual(
     name = &quot;Distribution&quot;,
-    values = c(&quot;Weighted Source&quot; = &quot;red&quot;, &quot;Target&quot; = &quot;blue&quot;)
+    values = c(&quot;Weighted Source&quot; = &quot;blue&quot;, &quot;Target&quot; = &quot;red&quot;)
   ) +
   labs(
     x = &quot;t&quot;,
@@ -639,48 +675,162 @@ estimation_true &lt;- ggplot() +
   )
 
 
-# estimation_true &lt;- ggplot() +
-#   geom_point(
-#     data = df_t_w_source,
-#     aes(x = t, y = w, color = &quot;True Weight&quot;),
-#     alpha = 0.3
-#   ) +
-#   # Estimated weight (red)
-#   geom_point(
-#     data = estimations_df,
-#     aes(x = t, y = estimation, color = &quot;Estimated Weight&quot;),
-#     alpha = 0.3
-#   ) +
-#   scale_color_manual(
-#     name   = &quot;weights&quot;,  # this is the legend title
-#     values = c(&quot;True Weight&quot; = &quot;blue&quot;,
-#                &quot;Estimated Weight&quot; = &quot;red&quot;)
-#   ) +
-#   labs(
-#     x = &quot;t&quot;,
-#     y = &quot;Weight&quot;,
-#     title = &quot;Estimated vs. True Density&quot;
-#   ) +
-#   theme_minimal() +
-#   theme(
-#     legend.title = element_text(size = 7),  # Smaller legend title
-#     legend.text  = element_text(size = 7)    # Smaller legend text
-#   )
-
 grid.arrange(source_target, estimation_true, ncol = 2)</code></pre>
-<p><img src="histogram_based_method_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<p><img src="histogram_based_method_files/figure-html/unnamed-chunk-3-1.png" width="672" /></p>
 </div>
+<div id="icu-patient-example" class="section level1">
+<h1>ICU Patient Example</h1>
+<pre class="r"><code>dat &lt;- read_csv(&quot;./data/data_forSDE.csv&quot;)</code></pre>
+<pre><code>## Rows: 13953 Columns: 4
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: &quot;,&quot;
+## dbl (4): los, mechvent, age, heartrate
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<pre class="r"><code>source_data &lt;- dat %&gt;%
+  filter(mechvent == 1, los &lt; 150) %&gt;%
+  select(los) %&gt;%
+  drop_na()
+
+target_data &lt;- dat %&gt;%
+  filter(mechvent == 0, los &lt; 150) %&gt;%
+  select(los) %&gt;%
+  drop_na()
+
+compute_histogram_ratio &lt;- function(x, target_data, source_data, r) {
+  # x is a numeric vector of length d
+  # target_data: n0 x d
+  # source_data: n1 x d
+  # r: numeric radius
+  
+  n0 &lt;- nrow(target_data)
+  n1 &lt;- nrow(source_data)
+  
+  # Indicator sum for target_data
+  # 1/ if distance &lt;= r, 0/ otherwise
+  # We&#39;ll compute Euclidean distance from x to each row in target_data
+  dist_target &lt;- apply(target_data, 1, function(xi) sqrt(sum((xi - x)^2)))
+  indicators_target &lt;- (dist_target &lt;= r)
+  numerator &lt;- mean(indicators_target)  # (1/n0) sum_i 1(...)
+  
+  # Indicator sum for source_data
+  dist_source &lt;- apply(source_data, 1, function(xi) sqrt(sum((xi - x)^2)))
+  indicators_source &lt;- (dist_source &lt;= r)
+  denominator &lt;- mean(indicators_source)  # (1/n1) sum_j 1(...)
+  
+  # Avoid division by zero if the denominator = 0
+  if (denominator == 0) {
+    ratio &lt;- Inf  # or define a small offset to avoid Inf, e.g. ratio &lt;- numerator / (denominator + 1e-10)
+  } else {
+    ratio &lt;- numerator / denominator
+  }
+  
+  # To obtain the re-weighted test vector
+  alpha = log(n0) / n0
+  estimate_reweight &lt;- ifelse(
+    denominator &gt;= alpha, ratio, 0
+  )
+  
+  list(ratio = ratio, 
+       estimation = estimate_reweight)
+}
+
+X_source &lt;- source_data$los
+X_target &lt;- target_data$los
+target_n &lt;- length(X_target)
+target_estimations &lt;- matrix(NA, nrow = target_n, ncol = 2)
+weighted_ratio   &lt;- numeric(target_n)
+
+
+r &lt;- 0.5  # Example value; adjust as needed
+
+# Loop through each test point (x in target data)
+for (i in seq_len(target_n)) {
+  x_i &lt;- X_target[i]
+  
+  # Convert to numeric vector of length d (if your data is 1D like los, this is fine)
+  res &lt;- compute_histogram_ratio(x = x_i, 
+                                 target_data = as.matrix(X_target), 
+                                 source_data = as.matrix(X_source), 
+                                 r = r)
+  
+  # Store both raw ratio and estimation (based on alpha thresholding)
+  target_estimations[i, ] &lt;- c(res$ratio, res$estimation)
+  weighted_ratio[i]     &lt;- res$estimation
+}</code></pre>
+<pre class="r"><code>df_original &lt;- bind_rows(
+  tibble(value = X_source, group = &quot;Source(mechvent=1)&quot;),
+  tibble(value = X_target, group = &quot;Target(mechvent=0)&quot;)
+)
+
+ggplot(df_original, aes(x = value, color = group)) +
+  geom_density(size = 1.2) +
+  labs(title = &quot;Original Density: Source vs Target&quot;,
+       x = &quot;LOS&quot;, y = &quot;Density&quot;) +
+  theme_minimal()</code></pre>
+<pre><code>## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+## generated.</code></pre>
+<p><img src="histogram_based_method_files/figure-html/unnamed-chunk-5-1.png" width="672" /></p>
+<pre class="r"><code># 2. Weighted source vs target
+# We&#39;ll sample from source using weights (with replacement)
+# Make sure weighted_ratio is aligned with source points
+# Here we assume you want to visualize how reweighting changes the *source* to match the *target*
+
+# Note: If weighted_ratio is for each target sample, we need to compute weights for *each source point*.
+# So let&#39;s reverse it: for each point in source, estimate its importance weight based on target.
+
+# Recompute: weight each source point using the same method (target: target_data, source: source_data)
+compute_weights_for_source &lt;- function(source_data, target_data, r = 0.5) {
+  n &lt;- nrow(source_data)
+  weights &lt;- numeric(n)
+  for (i in 1:n) {
+    x_i &lt;- source_data[i, ]
+    res &lt;- compute_histogram_ratio(
+      x = x_i,
+      target_data = target_data,
+      source_data = source_data,
+      r = r
+    )
+    weights[i] &lt;- res$estimation
+  }
+  return(weights)
+}
+
+# Assuming los is a 1D variable
+source_matrix &lt;- matrix(X_source, ncol = 1)
+target_matrix &lt;- matrix(X_target, ncol = 1)
+weights_source &lt;- compute_weights_for_source(source_matrix, target_matrix, r = 0.5)
+
+# Create weighted source dataframe
+df_weighted &lt;- tibble(
+  value = X_source,
+  weights = weights_source
+)
+
+# Remove zero weights (optional, for better density estimation)
+df_weighted &lt;- df_weighted %&gt;% filter(weights &gt; 0)
+
+# Plot weighted density vs target
+ggplot() +
+  geom_density(data = tibble(value = X_target), aes(x = value), color = &quot;red&quot;, size = 1.2, linetype = &quot;dashed&quot;) +
+  geom_density(data = df_weighted, aes(x = value, weight = weights), color = &quot;blue&quot;, size = 1.2) +
+  labs(title = &quot;Weighted Source vs Target Density&quot;,
+       x = &quot;LOS&quot;, y = &quot;Density&quot;,
+       caption = &quot;Red dashed: Target | Blue: Weighted Source&quot;) +
+  theme_minimal()</code></pre>
+<p><img src="histogram_based_method_files/figure-html/unnamed-chunk-5-2.png" width="672" />
+```</p>
 <div id="highlights" class="section level2">
 <h2>Highlights</h2>
 <ul>
-<li><p>Histogram-based method allow us to estimate the target data’s
-distribution with source data whether the data is parametric or not. And
-it doesn’t suffer from the curse of high dimension.</p></li>
-<li><p>To find the optimal oracle rate <span
-class="math inline">\(r\)</span>, <a
-href="https://proceedings.mlr.press/v54/kpotufe17a.html">Kpotufe</a>
-suggests a data-driven procedure in the section 4.2 of his
-paper.</p></li>
+<li>Histogram-based method allow us to estimate the target data’s
+distribution with source data whether the data is parametric or not(same
+as Kernel Density Estimation). But it also suffers from the curse of
+dimensionality/multivariate data.</li>
 </ul>
 </div>
 <div id="references" class="section level2">
@@ -689,6 +839,7 @@ paper.</p></li>
 S. (2017). Lipschitz density-ratios, structured data, and data-driven
 tuning. In Artificial Intelligence and Statistics, pages 1320–1328.
 PMLR.</a></p>
+</div>
 </div>
 
 

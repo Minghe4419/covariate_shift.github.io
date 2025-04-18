@@ -16,7 +16,7 @@
 <script src="site_libs/header-attrs-2.28/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/readable.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -352,6 +352,12 @@ div.tocify {
     <li>
       <a href="semi_parametric.html">Semi-parametric Method</a>
     </li>
+    <li>
+      <a href="least_square.html">Least Square Method</a>
+    </li>
+    <li>
+      <a href="domain_generalization.html">Domain Generaization</a>
+    </li>
   </ul>
 </li>
 <li>
@@ -394,10 +400,19 @@ Estimation</h1>
 </div>
 
 
+<p><span class="math inline">\(\omega(X) =
+\frac{p_T(X)}{p_S(X)}\)</span></p>
 <div id="parametric-mle" class="section level1">
 <h1>Parametric MLE</h1>
+<p>We simulate source and target marginal input(X) distribution:</p>
+<ul>
+<li><p><span class="math inline">\(X_{Source} \sim N(0,
+1)\)</span></p></li>
+<li><p><span class="math inline">\(X_{Target} \sim N(2,
+1)\)</span></p></li>
+</ul>
 <pre class="r"><code>set.seed(123)
-# 1. Simulate Source and Target Data
+# Simulate Source and Target Data
 n_source &lt;- 1000      # Number of source samples
 n_target &lt;- 400      # Number of target samples
 
@@ -411,14 +426,12 @@ X_target &lt;- rnorm(n_target, mean = 2, sd = 1)
 epsilon_source &lt;- rnorm(n_source, mean = 0, sd = 1)
 epsilon_target &lt;- rnorm(n_target, mean = 0, sd = 1)
 
-Y_source &lt;- 3 * X_source + epsilon_source
-Y_target &lt;- 3 * X_target + epsilon_target
 
 # Combine into data frames
-source_data &lt;- data.frame(X = X_source, Y = Y_source, Domain = &quot;Source&quot;)
-target_data &lt;- data.frame(X = X_target, Y = Y_target, Domain = &quot;Target&quot;)
+source_data &lt;- data.frame(X = X_source, Domain = &quot;Source&quot;)
+target_data &lt;- data.frame(X = X_target, Domain = &quot;Target&quot;)
 
-# 2. Estimate Densities Separately using MLE (Parametric)
+# Estimate Densities Separately using MLE (Parametric)
 # Assuming Gaussian distribution for both source and target
 
 # Fit Gaussian to Source X
@@ -431,397 +444,182 @@ fit_target_gaussian &lt;- fitdistr(target_data$X, densfun = &quot;normal&quot;)
 mu_target &lt;- fit_target_gaussian$estimate[&quot;mean&quot;]
 sigma_target &lt;- fit_target_gaussian$estimate[&quot;sd&quot;]
 
-# Display fitted parameters
-cat(&quot;Source Gaussian Parameters (MLE):\n&quot;)</code></pre>
-<pre><code>## Source Gaussian Parameters (MLE):</code></pre>
-<pre class="r"><code>print(fit_source_gaussian)</code></pre>
-<pre><code>##       mean          sd    
-##   0.01612787   0.99119900 
-##  (0.03134446) (0.02216388)</code></pre>
-<pre class="r"><code>cat(&quot;\nTarget Gaussian Parameters (MLE):\n&quot;)</code></pre>
-<pre><code>## 
-## Target Gaussian Parameters (MLE):</code></pre>
-<pre class="r"><code>print(fit_target_gaussian)</code></pre>
-<pre><code>##       mean          sd    
-##   2.00950362   0.99379851 
-##  (0.04968993) (0.03513608)</code></pre>
-<pre class="r"><code>print(mean(source_data$X))</code></pre>
-<pre><code>## [1] 0.01612787</code></pre>
-<pre class="r"><code>print(sd(source_data$X))</code></pre>
-<pre><code>## [1] 0.991695</code></pre>
-<pre class="r"><code># 3. Compute Density Ratios (Weights)
+# Display estimated parameters
+library(tibble)
+
+comparison_table &lt;- tibble(
+  Statistic = c(&quot;Mean&quot;, &quot;Standard Deviation&quot;),
+  Source = c(mu_source, sigma_source),
+  Target = c(mu_target, sigma_target)
+)
+
+knitr::kable(comparison_table)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Statistic</th>
+<th align="right">Source</th>
+<th align="right">Target</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Mean</td>
+<td align="right">0.0161279</td>
+<td align="right">2.0095036</td>
+</tr>
+<tr class="even">
+<td align="left">Standard Deviation</td>
+<td align="right">0.9911990</td>
+<td align="right">0.9937985</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code># Compute Density Ratios (Weights)
 # Using Gaussian density functions
 p_source &lt;- dnorm(source_data$X, mean = mu_source, sd = sigma_source)
 p_target &lt;- dnorm(source_data$X, mean = mu_target, sd = sigma_target)
 
-# Compute weights, avoiding division by zero
-epsilon_val &lt;- 1e-10
-weights &lt;- p_target / (p_source + epsilon_val)
+weights &lt;- p_target / p_source
 
-# 4. Add weights to source data
+# Add weights to source data
 source_data$weight &lt;- weights
 
-
-# 5. Estimate Target Parameter without Reweighting
-
-model_unweighted &lt;- lm(Y ~ X, data = source_data)
-coef_unweighted &lt;- coef(model_unweighted)
-
-# 6. Estimate Target Parameter with Reweighting
-model_weighted &lt;- lm(Y ~ X, data = source_data, weights = source_data$weight)
-coef_weighted &lt;- coef(model_weighted)
-
-# 7. True Target Parameter
-model_target &lt;- lm(Y ~ X, data = target_data)
-coef_target &lt;- coef(model_target)
-
-# 8. Compare the Estimates
-
-estimates &lt;- data.frame(
-  Model = c(&quot;Unweighted Source&quot;, &quot;Weighted Source&quot;, &quot;True Target&quot;),
-  Intercept = round(c(coef_unweighted[1], coef_weighted[1], coef_target[1]), 4),
-  Slope = round(c(coef_unweighted[2], coef_weighted[2], coef_target[2]), 4)
-)
-
-print(estimates)</code></pre>
-<pre><code>##               Model Intercept  Slope
-## 1 Unweighted Source    0.0101 3.0201
-## 2   Weighted Source   -0.0421 3.0240
-## 3       True Target    0.0390 2.9728</code></pre>
-<pre class="r"><code># 9. Make Predictions on Target Data Using Both Models
-pred_unweighted &lt;- predict(model_unweighted, newdata = target_data)
-pred_weighted &lt;- predict(model_weighted, newdata = target_data)
-
-# 10. Calculate Performance Metrics (e.g., Mean Squared Error)
-mse_unweighted &lt;- mean((pred_unweighted - target_data$Y)^2)
-mse_weighted &lt;- mean((pred_weighted - target_data$Y)^2)
-mse_target &lt;- mean((predict(model_target, newdata = target_data) - target_data$Y)^2)
-
-performance &lt;- data.frame(
-  Model = c(&quot;Unweighted Source&quot;, &quot;Weighted Source&quot;, &quot;True Target&quot;),
-  MSE = round(c(mse_unweighted, mse_weighted, mse_target), 4)
-)
-
-print(performance)</code></pre>
-<pre><code>##               Model    MSE
-## 1 Unweighted Source 0.9788
-## 2   Weighted Source 0.9752
-## 3       True Target 0.9722</code></pre>
-<pre class="r"><code>print(&quot;The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator&quot;)</code></pre>
-<pre><code>## [1] &quot;The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator&quot;</code></pre>
-<pre class="r"><code># 11. Visualization
-
-
+# Visualizations
 # a. Density Plots of X in Source and Target Domains
 density_plot &lt;- ggplot() +
-  geom_density(data = source_data, aes(x = X, color = &quot;Source&quot;), size = 1) +
-  geom_density(data = target_data, aes(x = X, color = &quot;Target&quot;), size = 1) +
-  labs(title = &quot;Density Plot of X in Source and Target Domains&quot;,
+  geom_density(data = source_data, aes(x = X, color = &quot;Source&quot;)) +
+  geom_density(data = target_data, aes(x = X, color = &quot;Target&quot;)) +
+  labs(title = &quot;Density plot of X&quot;,
        x = &quot;X&quot;, y = &quot;Density&quot;) +
   scale_color_manual(values = c(&quot;Source&quot; = &quot;blue&quot;, &quot;Target&quot; = &quot;red&quot;)) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(
-      size = 6,         # Adjusted size for better visibility
-      face = &quot;bold&quot;,
-      hjust = 0.5
-    ),
-    legend.title = element_blank()
-  )</code></pre>
+  theme_minimal()
+
+# b. Weighted Density Plot of X in Source and Target Domains
+weighted_density_plot &lt;- ggplot() +
+  geom_density(data = source_data, aes(x = X, weight = weight, color = &quot;Weighted Source&quot;)) + 
+  geom_density(data = target_data, aes(x = X, color = &quot;Target&quot;)) +
+  labs(title = &quot;Density plot of X&quot;,
+       x = &quot;X&quot;, y = &quot;Density&quot;) +
+  scale_color_manual(values = c(&quot;Weighted Source&quot; = &quot;blue&quot;, &quot;Target&quot; = &quot;red&quot;)) +
+  theme_minimal()
+
+
+# Arrange the plots in a 2x2 grid
+grid.arrange(
+  density_plot, weighted_density_plot,
+  ncol = 2
+)</code></pre>
+<p><img src="separate_density_estimation_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<p>We can tell this MLE estimation does not perform well. The weight
+only centered source X at target X’s mean. However, the reweighted
+distribution becomes overly concentrated, especially around X=2, where
+the target density peaks. This leads to a narrower spread in the
+weighted source, failing to capture the full variability of the target
+distribution.</p>
+<p>In other words, although the mean alignment looks successful, the
+variance is underestimated. This happens because importance weights tend
+to emphasize regions where <span
+class="math inline">\(p_{target}(X)\)</span> is high — but if the source
+has few samples in that region, the same few points get upweighted
+excessively, artificially inflating their density and collapsing the
+overall shape.</p>
+<p>You can use the code and play with difference parametric
+distributions to see how does the weighting process perform.</p>
+</div>
+<div id="non-parametric-kde" class="section level1">
+<h1>Non-parametric KDE</h1>
+<div id="importance-weighting-for-univariate-data"
+class="section level2">
+<h2>Importance weighting for Univariate data</h2>
+<p>We use real-life EHR data:</p>
+<ul>
+<li><p>Source Domain (<code>X_source</code>): Length of Stay for patient
+who experienced machine ventilation.</p></li>
+<li><p>Target Domain (<code>X_target</code>): Length of Stay for patient
+who did NOT experience machine ventilation.</p></li>
+</ul>
+<p>For univariate Kernel Density Estimation, we use
+<code>kdensity</code>:</p>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<pre><code>## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+## ✔ forcats   1.0.0     ✔ readr     2.1.5
+## ✔ lubridate 1.9.3     ✔ stringr   1.5.1
+## ✔ purrr     1.0.4     ✔ tidyr     1.3.1
+## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ gridExtra::combine() masks dplyr::combine()
+## ✖ dplyr::filter()      masks stats::filter()
+## ✖ dplyr::lag()         masks stats::lag()
+## ✖ MASS::select()       masks dplyr::select()
+## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
+<pre class="r"><code>library(ggplot2)
+library(dplyr)
+library(kdensity)
+
+dat &lt;- read_csv(&quot;./data/data_forSDE.csv&quot;)</code></pre>
+<pre><code>## Rows: 13953 Columns: 4
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: &quot;,&quot;
+## dbl (4): los, mechvent, age, heartrate
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+<pre class="r"><code>source_data &lt;- dat %&gt;%
+  filter(mechvent == 1, los &lt; 150) %&gt;%
+  dplyr::select(los) %&gt;%
+  drop_na()
+
+target_data &lt;- dat %&gt;%
+  filter(mechvent == 0, los &lt; 150) %&gt;%
+  dplyr::select(los) %&gt;%
+  drop_na()
+
+# Estimate densities
+source_pdf &lt;- kdensity(source_data$los, kernel = &quot;gaussian&quot;, bw = &quot;nrd0&quot;)
+target_pdf &lt;- kdensity(target_data$los, kernel = &quot;gaussian&quot;, bw = &quot;nrd0&quot;)
+
+# Compute density ratio weights
+epsilon &lt;- 1e-5
+p_source &lt;- source_pdf(source_data$los)
+p_target &lt;- target_pdf(source_data$los)
+weights &lt;- p_target / (p_source + epsilon)
+
+# Plot
+ggplot() +
+  geom_density(aes(x = los, color = &quot;Source: mechvent=1&quot;), data = source_data, size = 1) +
+  geom_density(aes(x = los, color = &quot;Target: mechvent=0&quot;), data = target_data, size = 1) +
+  labs(title = &quot;LOS Distribution Shift by MechVent Status&quot;, x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
+  scale_color_manual(values = c(&quot;Source: mechvent=1&quot; = &quot;blue&quot;, &quot;Target: mechvent=0&quot; = &quot;red&quot;)) +
+  theme_minimal()</code></pre>
 <pre><code>## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
 ## ℹ Please use `linewidth` instead.
 ## This warning is displayed once every 8 hours.
 ## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
 ## generated.</code></pre>
-<pre class="r"><code># b. Weighted Density Plot of X in Source and Target Domains
-weighted_density_plot &lt;- ggplot() +
-  geom_density(data = source_data, aes(x = X, weight = weight/sum(weight), color = &quot;Weighted Source&quot;), size = 1) + #normalize weights to ensures the total weight sums to 1
-  geom_density(data = target_data, aes(x = X, color = &quot;Target&quot;), size = 1) +
-  labs(title = &quot;Density Plot of X in Weighted Source and Target Domains&quot;,
-       x = &quot;X&quot;, y = &quot;Density&quot;) +
-  scale_color_manual(values = c(&quot;Weighted Source&quot; = &quot;blue&quot;, &quot;Target&quot; = &quot;red&quot;)) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(
-      size = 6,         # Adjusted size for better visibility
-      face = &quot;bold&quot;,
-      hjust = 0.5
-    ),
-    legend.title = element_blank()
-  )
-
-# c. Regression Lines Plot
-regression_lines &lt;- data.frame(
-  Type = c(&quot;Unweighted Source&quot;, &quot;Weighted Source&quot;, &quot;True Target&quot;),
-  Intercept = c(coef_unweighted[1], coef_weighted[1], coef_target[1]),
-  Slope = c(coef_unweighted[2], coef_weighted[2], coef_target[2])
-)
-
-regression_plot &lt;- ggplot() +
-  geom_point(data = target_data, aes(x = X, y = Y, color = &quot;Target Data&quot;), alpha = 0.5) +
-  geom_point(data = source_data, aes(x = X, y = Y, color = &quot;Source Data&quot;), alpha = 0.3) +
-  geom_abline(data = regression_lines, 
-              aes(intercept = Intercept, slope = Slope, color = Type, linetype = Type), size = 1) +
-  labs(title = &quot;Regression Lines: Unweighted vs. Weighted vs. True Target&quot;,
-       x = &quot;X&quot;,
-       y = &quot;Y&quot;) +
-  scale_color_manual(values = c(&quot;Unweighted Source&quot; = &quot;green&quot;, &quot;Weighted Source&quot; = &quot;purple&quot;, 
-                                &quot;True Target&quot; = &quot;red&quot;, &quot;Target Data&quot; = &quot;red&quot;, &quot;Source Data&quot; = &quot;blue&quot;)) +
-  scale_linetype_manual(values = c(&quot;Unweighted Source&quot; = &quot;dashed&quot;, &quot;Weighted Source&quot; = &quot;dashed&quot;, &quot;True Target&quot; = &quot;solid&quot;)) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(
-      size = 6,         # Adjusted size for better visibility
-      face = &quot;bold&quot;,
-      hjust = 0.5
-    ),
-    legend.title = element_blank()
-  )
-
-# d. Density Plot of Predictions vs. True Target
-predictions_comparison &lt;- data.frame(
-  Y_pred_unweighted = pred_unweighted,
-  Y_pred_weighted = pred_weighted,
-  Y_true = target_data$Y
-)
-
-# Melt the data for ggplot
-predictions_melted &lt;- melt(predictions_comparison, 
-                           measure.vars = c(&quot;Y_pred_unweighted&quot;, &quot;Y_pred_weighted&quot;, &quot;Y_true&quot;),
-                           variable.name = &quot;Model&quot;, value.name = &quot;Y&quot;)
-
-# Assign readable model names
-predictions_melted$Model &lt;- factor(predictions_melted$Model,
-                                   levels = c(&quot;Y_pred_unweighted&quot;, &quot;Y_pred_weighted&quot;, &quot;Y_true&quot;),
-                                   labels = c(&quot;Unweighted Source&quot;, &quot;Weighted Source&quot;, &quot;True Target&quot;))
-
-# Density plot comparison
-density_comparison_plot &lt;- ggplot(predictions_melted, aes(x = Y, fill = Model)) +
-  geom_density(alpha = 0.5) +
-  labs(title = &quot;Density Comparison of Predictions vs. True Target Y&quot;,
-       x = &quot;Y&quot;, y = &quot;Density&quot;) +
-  scale_fill_manual(values = c(&quot;Unweighted Source&quot; = &quot;green&quot;, 
-                               &quot;Weighted Source&quot; = &quot;purple&quot;, 
-                               &quot;True Target&quot; = &quot;red&quot;)) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(
-      size = 6,         # Adjusted size for better visibility
-      face = &quot;bold&quot;,
-      hjust = 0.5
-    ),
-    legend.title = element_blank(),
-  )
-
-# Arrange the plots in a 2x2 grid
-grid.arrange(
-  density_plot, weighted_density_plot, 
-  regression_plot, density_comparison_plot, 
-  ncol = 2
-)</code></pre>
-<p><img src="separate_density_estimation_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
-</div>
-<div id="non-parametric-kde" class="section level1">
-<h1>Non-parametric KDE</h1>
-<p>When generating data:</p>
-<ul>
-<li><p>Source Domain (<code>X_source</code>): Generated from a mixture
-of two Gaussian distributions, creating a bimodal and non-symmetric
-distribution.</p></li>
-<li><p>Target Domain (<code>X_target</code>): Generated from a Gamma
-distribution, which is skewed and does not follow a symmetric
-distribution, adding further non-parametric complexity.</p></li>
-</ul>
-<pre class="r"><code># 1. Simulate Source and Target Data
-set.seed(123)
-n_source &lt;- 1000
-n_target &lt;- 400
-
-# Source domain: Mixture of two Gaussians
-# 50% from N(-2, 0.5^2) and 50% from N(2, 0.5^2)
-source_component &lt;- sample(1:2, size = n_source, replace = TRUE)
-X_source &lt;- ifelse(source_component == 1,
-                   rnorm(n_source, mean = -2, sd = 0.5),
-                   rnorm(n_source, mean = 2, sd = 0.5))
-
-# Target domain: Skewed distribution
-# Using a Gamma distribution shifted to have similar range as source
-X_target &lt;- rgamma(n_target, shape = 2, scale = 1)
-
-# Conditional distribution: Y = 3X + epsilon, epsilon ~ N(0, 1)
-epsilon_source &lt;- rnorm(n_source, mean = 0, sd = 1)
-epsilon_target &lt;- rnorm(n_target, mean = 0, sd = 1)
-
-Y_source &lt;- 3 * X_source + epsilon_source
-Y_target &lt;- 3 * X_target + epsilon_target
-
-# Combine into data frames
-source_data &lt;- data.frame(X = X_source, Y = Y_source, Domain = &quot;Source&quot;)
-target_data &lt;- data.frame(X = X_target, Y = Y_target, Domain = &quot;Target&quot;)
-
-# 2. Estimate Densities Separately using KDE
-# Estimate P_source(X) and P_target(X)
-kde_source &lt;- kdensity(source_data$X, kernel = &quot;gaussian&quot;, bw = &quot;nrd0&quot;)
-kde_target &lt;- kdensity(target_data$X, kernel = &quot;gaussian&quot;, bw = &quot;nrd0&quot;)
-
-# Evaluate densities at source data points
-p_source &lt;- kde_source(source_data$X)
-p_target &lt;- kde_target(source_data$X)
-
-# 3. Compute Density Ratios (Weights)
-# Avoid division by zero
-epsilon_val &lt;- 1e-10
-weights &lt;- p_target / (p_source + epsilon_val)
-
-# 4. Reweight the Source Data
-source_data$weight &lt;- weights
-
-# 5. Estimate Target Parameter without Reweighting
-model_unweighted &lt;- lm(Y ~ X, data = source_data)
-coef_unweighted &lt;- coef(model_unweighted)
-
-# 6. Estimate Target Parameter with Reweighting
-model_weighted &lt;- lm(Y ~ X, data = source_data, weights = source_data$weight)
-coef_weighted &lt;- coef(model_weighted)
-
-# 7. True Target Parameter
-model_target &lt;- lm(Y ~ X, data = target_data)
-coef_target &lt;- coef(model_target)
-
-# 8. Compare the Estimates
-estimates &lt;- data.frame(
-  Model = c(&quot;Unweighted Source&quot;, &quot;Weighted Source&quot;, &quot;True Target&quot;),
-  Intercept = round(c(coef_unweighted[1], coef_weighted[1], coef_target[1]), 4),
-  Slope = round(c(coef_unweighted[2], coef_weighted[2], coef_target[2]), 4)
-)
-
-print(estimates)</code></pre>
-<pre><code>##               Model Intercept  Slope
-## 1 Unweighted Source   -0.0027 2.9873
-## 2   Weighted Source   -0.1125 3.0390
-## 3       True Target    0.0420 2.9809</code></pre>
-<pre class="r"><code># 9. Make Predictions on Target Data Using Both Models
-pred_unweighted &lt;- predict(model_unweighted, newdata = target_data)
-pred_weighted &lt;- predict(model_weighted, newdata = target_data)
-
-# 10. Calculate Performance Metrics (e.g., Mean Squared Error)
-mse_unweighted &lt;- mean((pred_unweighted - target_data$Y)^2)
-mse_weighted &lt;- mean((pred_weighted - target_data$Y)^2)
-mse_target &lt;- mean((predict(model_target, newdata = target_data) - target_data$Y)^2)
-
-performance &lt;- data.frame(
-  Model = c(&quot;Unweighted Source&quot;, &quot;Weighted Source&quot;, &quot;True Target&quot;),
-  MSE = round(c(mse_unweighted, mse_weighted, mse_target), 4)
-)
-
-print(performance)</code></pre>
-<pre><code>##               Model    MSE
-## 1 Unweighted Source 0.9966
-## 2   Weighted Source 1.0035
-## 3       True Target 0.9955</code></pre>
-<pre class="r"><code>print(&quot;The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator&quot;)</code></pre>
-<pre><code>## [1] &quot;The result reflect the issue that Dividing by a density could inflate the estimation error on the numarator&quot;</code></pre>
-<pre class="r"><code># 11. Visualization
-
-# a. Density Plots of X in Source and Target Domains
-density_plot &lt;- ggplot() +
-  geom_density(data = source_data, aes(x = X, color = &quot;Source&quot;), size = 1) +
-  geom_density(data = target_data, aes(x = X, color = &quot;Target&quot;), size = 1) +
-  labs(title = &quot;Density Plot of X in Source and Target Domains&quot;,
-       x = &quot;X&quot;, y = &quot;Density&quot;) +
-  scale_color_manual(values = c(&quot;Source&quot; = &quot;blue&quot;, &quot;Target&quot; = &quot;red&quot;)) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(
-      size = 6,          # Adjusted size
-      face = &quot;bold&quot;,
-      hjust = 0.5
-    ),
-    legend.title = element_blank()
-  )
-
-# b. Weighted Density Plot of X in Source and Target Domains
-weighted_density_plot &lt;- ggplot() +
-  geom_density(data = source_data, aes(x = X, weight = weight/sum(weight), color = &quot;Weighted Source&quot;), size = 1) + #normalize weights to ensures the total weight sums to 1
-  geom_density(data = target_data, aes(x = X, color = &quot;Target&quot;), size = 1) +
-  labs(title = &quot;Density Plot of X in Weighted Source and Target Domains&quot;,
-       x = &quot;X&quot;, y = &quot;Density&quot;) +
-  scale_color_manual(values = c(&quot;Weighted Source&quot; = &quot;blue&quot;, &quot;Target&quot; = &quot;red&quot;)) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(
-      size = 6,         # Adjusted size for better visibility
-      face = &quot;bold&quot;,
-      hjust = 0.5
-    ),
-    legend.title = element_blank()
-  )
-
-# c. Regression Lines Plot
-regression_lines &lt;- data.frame(
-  Type = c(&quot;Unweighted Source&quot;, &quot;Weighted Source&quot;, &quot;True Target&quot;),
-  Intercept = c(coef_unweighted[1], coef_weighted[1], coef_target[1]),
-  Slope = c(coef_unweighted[2], coef_weighted[2], coef_target[2])
-)
-
-regression_plot &lt;- ggplot() +
-  geom_point(data = target_data, aes(x = X, y = Y, color = &quot;Target Data&quot;), alpha = 0.5) +
-  geom_point(data = source_data, aes(x = X, y = Y, color = &quot;Source Data&quot;), alpha = 0.3) +
-  geom_abline(data = regression_lines, aes(intercept = Intercept, slope = Slope, color = Type, linetype = Type), size = 1) +
-  labs(title = &quot;Regression Lines: Unweighted vs. Weighted vs. True Target&quot;,
-       x = &quot;X&quot;,
-       y = &quot;Y&quot;) +
-  scale_color_manual(values = c(&quot;Unweighted Source&quot; = &quot;green&quot;, &quot;Weighted Source&quot; = &quot;purple&quot;, &quot;True Target&quot; = &quot;red&quot;, &quot;Target Data&quot; = &quot;red&quot;, &quot;Source Data&quot; = &quot;blue&quot;)) +
-  scale_linetype_manual(values = c(&quot;Unweighted Source&quot; = &quot;dashed&quot;, &quot;Weighted Source&quot; = &quot;dashed&quot;, &quot;True Target&quot; = &quot;solid&quot;)) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(
-      size = 6,          # Adjusted size
-      face = &quot;bold&quot;,
-      hjust = 0.5
-    ),
-    legend.title = element_blank()
-  )
-
-# d. Density Plot of Predictions vs. True Target
-predictions_comparison &lt;- data.frame(
-  Y_pred_unweighted = pred_unweighted,
-  Y_pred_weighted = pred_weighted,
-  Y_true = target_data$Y
-)
-
-# Melt the data for ggplot
-predictions_melted &lt;- melt(predictions_comparison, measure.vars = c(&quot;Y_pred_unweighted&quot;, &quot;Y_pred_weighted&quot;, &quot;Y_true&quot;),
-                           variable.name = &quot;Model&quot;, value.name = &quot;Y&quot;)
-
-# Assign readable model names
-predictions_melted$Model &lt;- factor(predictions_melted$Model,
-                                   levels = c(&quot;Y_pred_unweighted&quot;, &quot;Y_pred_weighted&quot;, &quot;Y_true&quot;),
-                                   labels = c(&quot;Unweighted Source&quot;, &quot;Weighted Source&quot;, &quot;True Target&quot;))
-
-# Density plot comparison
-density_comparison_plot &lt;- ggplot(predictions_melted, aes(x = Y, fill = Model)) +
-  geom_density(alpha = 0.5) +
-  labs(title = &quot;Density Comparison of Predictions vs. True Target Y&quot;,
-       x = &quot;Y&quot;, y = &quot;Density&quot;) +
-  scale_fill_manual(values = c(&quot;Unweighted Source&quot; = &quot;green&quot;, &quot;Weighted Source&quot; = &quot;blue&quot;, &quot;True Target&quot; = &quot;red&quot;)) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(
-      size = 6,          # Adjusted size
-      face = &quot;bold&quot;,
-      hjust = 0.5
-    )
-  )
-
-
-# Arrange the plots in a 2x2 grid
-grid.arrange(
-  density_plot, weighted_density_plot, 
-  regression_plot, density_comparison_plot, 
-  ncol = 2
-)</code></pre>
 <p><img src="separate_density_estimation_files/figure-html/unnamed-chunk-2-1.png" width="672" /></p>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(x = los, weight = weights, color = &quot;Weighted Source (mechvent=1)&quot;), data = source_data, size = 1) +
+  geom_density(aes(x = los, color = &quot;Target (mechvent=0)&quot;), data = target_data, size = 1) +
+  scale_color_manual(values = c(&quot;Weighted Source (mechvent=1)&quot; = &quot;blue&quot;, &quot;Target (mechvent=0)&quot; = &quot;red&quot;)) +
+  labs(title = &quot;LOS: Weighted Source vs. Target (MechVent)&quot;, x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
+  theme_minimal()</code></pre>
+<p><img src="separate_density_estimation_files/figure-html/unnamed-chunk-2-2.png" width="672" /></p>
+</div>
+</div>
+<div id="highlights" class="section level1">
+<h1>Highlights</h1>
+<ul>
+<li><p>Separate Density Estimation was introduced only to provide
+intuitions for importance weighting method that this weight refers to
+the ratio between probability of data points follows target and source
+distribution <span
+class="math inline">\(\frac{p_T(X)}{p_S(X)}\)</span>.</p></li>
+<li><p>This method is not practical because it suffers from <a
+href="https://medium.com/data-science/kernel-density-estimator-for-multidimensional-data-3e78c9779ed8">multivariate
+data</a> and <a
+href="https://www.columbia.edu/~yt2661/STL/slides/Lecture-3.pdf">worse
+smoothness problem(Page. 23)</a></p></li>
+</ul>
 </div>
 
 

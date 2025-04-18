@@ -10,7 +10,35 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+It is the scenario when $P_T(Y|X) = P_S(Y|X), P_T(X) \neq P_S(X)$
+
+<img src="Picture1.png" width="300px" height="150px">
+
+
+### Importance Weighting Methods
+
+Separate Density Estimation
+
+- [Separate Kernel Density Estimation](separate_density_estimation.html)
+
+- [Histogram-based Estimation](histogram_based_method.html)
+
+Estimating Weight as a whole 
+
+- [Kernel Mean Matching](kernel_mean_matching.html)
+
+- [Least Square Method](least_sqaure.html)
+
+- [Kullback-Leibler Method](kl_method.html)
+
+- [Discriminative Learning](discriminative_learning.html)
+
+- [Profile Likelihood Method](semi_parametric.html)
+
+
 ### Come back here when get lost📍
+
+<iframe src="Covariate Shift_v3_pdf_version.pdf" width="90%" height="400px" style="border: none;"></iframe>
 
 - **Covariate Shift** is a specific type of dataset shift often encountered in machine learning. It is when the distribution of input data shifts between the training environment and live environment.
 

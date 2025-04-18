@@ -14,21 +14,18 @@ library(MASS)
 library(dplyr)
 library(gridExtra)
 library(mvtnorm)
+library(tidyverse)
 ```
 
 ## Theoretical Background
 
 ### Estimator
 
-- Goal: estimating $w = f^{(0)} / f^{(1)}$ from $\{x_{i^{(k)}}\}^{n_k}_{i=1} \overset{\mathrm{iid}}{\sim} f^{(k)}$
+- Goal: estimating $w = \frac{f^{Target}(X)}{f^{Source}(X)}$ from $\{x_{i^{(k)}}\}^{n_k}_{i=1} \overset{\mathrm{iid}}{\sim} f^{(k)}$
 
-- Estimator[(Kpotufe, 2017)](https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf): $\tilde{w} = \frac{\hat{\mathbb{P}}^{(0)}(B(x, r))}{\hat{\mathbb{P}}^{(1)}(B(x, r))} = \frac{n_{0}^{-1}\sum_{i=1}^{n_0}\mathbb{1}(||x - x_{i}^{(0)}||_2 \leq r)}{n_{1}^{-1}\sum_{i=1}^{n_1}\mathbb{1}(||x - x_{i}^{(1)}||_2 \leq r}$; $\hat{w}(x) = \tilde{w}(x) \mathbb{1}(\hat{\mathbb{P}}^{(1)}(B(x, r)) \geq \alpha)$
+- Estimator[(Kpotufe, 2017)](https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf): $\tilde{w} = \frac{\hat{\mathbb{P}}^{(T)}(B(x, r))}{\hat{\mathbb{P}}^{(S)}(B(x, r))} = \frac{n_{0}^{-1}\sum_{i=1}^{n_0}\mathbb{1}(||x - x_{i}^{(T)}||_2 \leq r)}{n_{1}^{-1}\sum_{i=1}^{n_1}\mathbb{1}(||x - x_{i}^{(S)}||_2 \leq r}$; $\hat{w}(x) = \tilde{w}(x) \mathbb{1}(\hat{\mathbb{P}}^{(S)}(B(x, r)) \geq \alpha)$
 
-- Theorem 3.4.1 [(Kpotufe, 2017)](https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf):
-
-  With $r$ $\asymp [\frac{log(n_0 \bigwedge n_{1})}{n_0 \bigwedge n_1}]^{\frac{\beta}{2\beta + d}}$, $\alpha \asymp \frac{log(n_0)}{n_0}$, we have:
-
-  $\mathbb{E}_{X \sim \mathbb{P}^{(1)}} |\hat{w}(X) - w(X)| \lesssim_{\mathbb{P}}[\frac{log(n_0 \bigwedge n_{1})}{n_0 \bigwedge n_1}]^{\frac{\beta}{2\beta + d}}$
+- Optimal radius $r$ is found by a data driven algorithm in [(Kpotufe, 2017)](https://proceedings.mlr.press/v54/kpotufe17a/kpotufe17a.pdf) Theorem 3.4.1
 
 ### Assumptions
 
@@ -41,6 +38,45 @@ library(mvtnorm)
 ## Implementation
 
 ```{r}
+library(ggplot2)
+
+# Example synthetic data
+set.seed(123)
+source_data <- matrix(rnorm(100 * 2, mean = 0), ncol = 2)
+target_data <- matrix(rnorm(50 * 2, mean = 1), ncol = 2)
+
+# Convert to data frames
+source_df <- data.frame(x = source_data[,1], y = source_data[,2])
+target_df <- data.frame(x = target_data[,1], y = target_data[,2])
+
+# Query point and radius
+x_query <- c(1, 1)
+r <- 1.0
+
+# Compute distances
+dist_source <- sqrt(rowSums((source_data - matrix(x_query, nrow = nrow(source_data), ncol = 2, byrow = TRUE))^2))
+dist_target <- sqrt(rowSums((target_data - matrix(x_query, nrow = nrow(target_data), ncol = 2, byrow = TRUE))^2))
+
+# Circle coordinates
+theta <- seq(0, 2 * pi, length.out = 200)
+circle <- data.frame(
+  x = x_query[1] + r * cos(theta),
+  y = x_query[2] + r * sin(theta)
+)
+
+# Plot with fixed aspect ratio
+ggplot() +
+  geom_point(data = source_df, aes(x = x, y = y), color = 'blue', alpha = 0.6) +
+  geom_point(data = target_df, aes(x = x, y = y), color = 'red', alpha = 0.6) +
+  geom_point(aes(x = x_query[1], y = x_query[2]), shape = 4, size = 5, stroke = 2) +
+  geom_path(data = circle, aes(x = x, y = y), linetype = "dashed") +
+  coord_fixed() + 
+  theme_minimal() +
+  labs(title = "w(X) = number of red dots / number of blue dots", subtitle = "Red = Target, Blue = Source",
+       x = "Feature 1", y = "Feature 2")
+```
+
+```{r}
 # ----------------------------
 # 1) Setup
 # ----------------------------
@@ -50,7 +86,7 @@ D <- 20
 v <- seq_len(D)  # v = (1, 2, ..., 20)
 
 n_source <- 1000
-n_target <- 1000
+n_target <- 400
 
 # ----------------------------
 # 2) Define mixture distributions
@@ -74,7 +110,7 @@ mix_2_gaussian <- function(n, means, sds) {
 # ----------------------------
 target_t <- mix_2_gaussian(
   n    = n_target,
-  means = c(-4, 4),
+  means = c(-2, 4),
   sds   = c(1, 1)
 )
 
@@ -98,7 +134,7 @@ df_source <- as.data.frame(X_source)
 # each lying on the line spanned by v (since x = t*v).
 
 f_target <- function(t) {
-  0.5 * dnorm(t, mean = -4, sd = 1) +
+  0.5 * dnorm(t, mean = -2, sd = 1) +
   0.5 * dnorm(t, mean = 4,  sd = 1)
 }
 
@@ -215,8 +251,8 @@ source_target <- ggplot() +
   geom_density(data = df_source, aes(x = V1, color = "Source")) +
   scale_color_manual(
     name   = "distribution",  # this is the legend title
-    values = c("Target" = "blue",
-               "Source" = "red")
+    values = c("Target" = "red",
+               "Source" = "blue")
   ) +
   labs(x = "t", y = "Density", title = "Target vs Source Distribution") +
   theme_minimal() +
@@ -230,7 +266,7 @@ estimation_true <- ggplot() +
   geom_density(data = target_f, aes(x = t, color = "Target")) +
   scale_color_manual(
     name = "Distribution",
-    values = c("Weighted Source" = "red", "Target" = "blue")
+    values = c("Weighted Source" = "blue", "Target" = "red")
   ) +
   labs(
     x = "t",
@@ -244,42 +280,152 @@ estimation_true <- ggplot() +
   )
 
 
-# estimation_true <- ggplot() +
-#   geom_point(
-#     data = df_t_w_source,
-#     aes(x = t, y = w, color = "True Weight"),
-#     alpha = 0.3
-#   ) +
-#   # Estimated weight (red)
-#   geom_point(
-#     data = estimations_df,
-#     aes(x = t, y = estimation, color = "Estimated Weight"),
-#     alpha = 0.3
-#   ) +
-#   scale_color_manual(
-#     name   = "weights",  # this is the legend title
-#     values = c("True Weight" = "blue",
-#                "Estimated Weight" = "red")
-#   ) +
-#   labs(
-#     x = "t",
-#     y = "Weight",
-#     title = "Estimated vs. True Density"
-#   ) +
-#   theme_minimal() +
-#   theme(
-#     legend.title = element_text(size = 7),  # Smaller legend title
-#     legend.text  = element_text(size = 7)    # Smaller legend text
-#   )
-
 grid.arrange(source_target, estimation_true, ncol = 2)
+```
+
+# ICU Patient Example
+
+```{r}
+dat <- read_csv("./data/data_forSDE.csv")
+
+source_data <- dat %>%
+  filter(mechvent == 1, los < 150) %>%
+  select(los) %>%
+  drop_na()
+
+target_data <- dat %>%
+  filter(mechvent == 0, los < 150) %>%
+  select(los) %>%
+  drop_na()
+
+compute_histogram_ratio <- function(x, target_data, source_data, r) {
+  # x is a numeric vector of length d
+  # target_data: n0 x d
+  # source_data: n1 x d
+  # r: numeric radius
+  
+  n0 <- nrow(target_data)
+  n1 <- nrow(source_data)
+  
+  # Indicator sum for target_data
+  # 1/ if distance <= r, 0/ otherwise
+  # We'll compute Euclidean distance from x to each row in target_data
+  dist_target <- apply(target_data, 1, function(xi) sqrt(sum((xi - x)^2)))
+  indicators_target <- (dist_target <= r)
+  numerator <- mean(indicators_target)  # (1/n0) sum_i 1(...)
+  
+  # Indicator sum for source_data
+  dist_source <- apply(source_data, 1, function(xi) sqrt(sum((xi - x)^2)))
+  indicators_source <- (dist_source <= r)
+  denominator <- mean(indicators_source)  # (1/n1) sum_j 1(...)
+  
+  # Avoid division by zero if the denominator = 0
+  if (denominator == 0) {
+    ratio <- Inf  # or define a small offset to avoid Inf, e.g. ratio <- numerator / (denominator + 1e-10)
+  } else {
+    ratio <- numerator / denominator
+  }
+  
+  # To obtain the re-weighted test vector
+  alpha = log(n0) / n0
+  estimate_reweight <- ifelse(
+    denominator >= alpha, ratio, 0
+  )
+  
+  list(ratio = ratio, 
+       estimation = estimate_reweight)
+}
+
+X_source <- source_data$los
+X_target <- target_data$los
+target_n <- length(X_target)
+target_estimations <- matrix(NA, nrow = target_n, ncol = 2)
+weighted_ratio   <- numeric(target_n)
+
+
+r <- 0.5  # Example value; adjust as needed
+
+# Loop through each test point (x in target data)
+for (i in seq_len(target_n)) {
+  x_i <- X_target[i]
+  
+  # Convert to numeric vector of length d (if your data is 1D like los, this is fine)
+  res <- compute_histogram_ratio(x = x_i, 
+                                 target_data = as.matrix(X_target), 
+                                 source_data = as.matrix(X_source), 
+                                 r = r)
+  
+  # Store both raw ratio and estimation (based on alpha thresholding)
+  target_estimations[i, ] <- c(res$ratio, res$estimation)
+  weighted_ratio[i]     <- res$estimation
+}
+```
+
+```{r}
+df_original <- bind_rows(
+  tibble(value = X_source, group = "Source(mechvent=1)"),
+  tibble(value = X_target, group = "Target(mechvent=0)")
+)
+
+ggplot(df_original, aes(x = value, color = group)) +
+  geom_density(size = 1.2) +
+  labs(title = "Original Density: Source vs Target",
+       x = "LOS", y = "Density") +
+  theme_minimal()
+
+# 2. Weighted source vs target
+# We'll sample from source using weights (with replacement)
+# Make sure weighted_ratio is aligned with source points
+# Here we assume you want to visualize how reweighting changes the *source* to match the *target*
+
+# Note: If weighted_ratio is for each target sample, we need to compute weights for *each source point*.
+# So let's reverse it: for each point in source, estimate its importance weight based on target.
+
+# Recompute: weight each source point using the same method (target: target_data, source: source_data)
+compute_weights_for_source <- function(source_data, target_data, r = 0.5) {
+  n <- nrow(source_data)
+  weights <- numeric(n)
+  for (i in 1:n) {
+    x_i <- source_data[i, ]
+    res <- compute_histogram_ratio(
+      x = x_i,
+      target_data = target_data,
+      source_data = source_data,
+      r = r
+    )
+    weights[i] <- res$estimation
+  }
+  return(weights)
+}
+
+# Assuming los is a 1D variable
+source_matrix <- matrix(X_source, ncol = 1)
+target_matrix <- matrix(X_target, ncol = 1)
+weights_source <- compute_weights_for_source(source_matrix, target_matrix, r = 0.5)
+
+# Create weighted source dataframe
+df_weighted <- tibble(
+  value = X_source,
+  weights = weights_source
+)
+
+# Remove zero weights (optional, for better density estimation)
+df_weighted <- df_weighted %>% filter(weights > 0)
+
+# Plot weighted density vs target
+ggplot() +
+  geom_density(data = tibble(value = X_target), aes(x = value), color = "red", size = 1.2, linetype = "dashed") +
+  geom_density(data = df_weighted, aes(x = value, weight = weights), color = "blue", size = 1.2) +
+  labs(title = "Weighted Source vs Target Density",
+       x = "LOS", y = "Density",
+       caption = "Red dashed: Target | Blue: Weighted Source") +
+  theme_minimal()
+```
 ```
 
 ## Highlights
 
-- Histogram-based method allow us to estimate the target data's distribution with source data whether the data is parametric or not. And it doesn't suffer from the curse of high dimension.
-
-- To find the optimal oracle rate $r$, [Kpotufe](https://proceedings.mlr.press/v54/kpotufe17a.html) suggests a data-driven procedure in the section 4.2 of his paper.
+- Histogram-based method allow us to estimate the target data's distribution with source data whether the data is parametric or not(same as Kernel Density Estimation). But it also suffers from the curse of dimensionality/multivariate data.
 
 ## References
 
