@@ -193,7 +193,7 @@ ggplot() +
                data = source_data3, alpha = 0.3, size = 1) +
   scale_color_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
   scale_fill_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
-  labs(title = "Density of Univariate Data(LOS): Weighted Source vs. Target",
+  labs(title = "Marginal Densities(LOS): Weighted Source vs. Target",
        x = "Length of Stay", y = "Density") +
   theme_minimal()
 
@@ -204,7 +204,7 @@ ggplot() +
                data = source_data3, alpha = 0.3, size = 1) +
   scale_color_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
   scale_fill_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
-  labs(title = "Density of Univariate Data(Age): Weighted Source vs. Target",
+  labs(title = "Marginal Densities(Age): Weighted Source vs. Target",
        x = "Length of Stay", y = "Density") +
   theme_minimal()
 
@@ -216,7 +216,7 @@ ggplot() +
                data = source_data3, alpha = 0.3, size = 1) +
   scale_color_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
   scale_fill_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
-  labs(title = "Density of Univariate Data(Heart Rate): Weighted Source vs. Target",
+  labs(title = "Marginal Densities(Heart Rate): Weighted Source vs. Target",
        x = "Length of Stay", y = "Density") +
   theme_minimal()
 
@@ -251,11 +251,10 @@ ggplot() +
 ```
 [Maximum mean discrepancy (MMD)](https://jmlr.csail.mit.edu/papers/v13/gretton12a.html), a method measures the distance between two distributions by comparing the mean embeddings of their samples in a Reproducing Kernel Hilbert Space (RKHS), can be useful in measuring how does the weighting process perform.
 
-```{r}
-
-```
 
 # Highlights
+
+- Least Square Importance Fitting is implemented in `densityratio` R package. This package also includes Kernel Mean Matching, and KL Importance Estimation. [Kanamori et all, 2009](https://jmlr.org/papers/volume10/kanamori09a/kanamori09a.pdf) proved the Least Square method(unconstrained version) is stable and the fastest among the methods.
 
 # Reference
 

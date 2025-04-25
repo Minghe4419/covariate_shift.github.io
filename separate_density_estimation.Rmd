@@ -177,6 +177,104 @@ ggplot() +
 
 ```
 
+## Importance weighting for Multivariate data
+
+```{r}
+library(dplyr)
+library(ks)
+library(ggplot2)
+
+# 1. Define the high-dimensional variables:
+#    We'll use: age, los (length of stay), and heartrate
+
+# Filter and prepare the source data (MICU)
+source_hd <- dat %>% 
+  filter(mechvent == 1, los < 150) %>% 
+  dplyr::select(age, los, heartrate) %>% 
+  na.omit()
+
+# Filter and prepare the target data (other care units)
+target_hd <- dat %>% 
+  filter(mechvent == 0, los < 150) %>% 
+  dplyr::select(age, los, heartrate) %>% 
+  na.omit()
+
+# 2. Estimate multivariate densities using the ks package
+#    The kde() function can handle multi-dimensional data.
+kde_source_hd <- kde(x = as.matrix(source_hd))
+kde_target_hd <- kde(x = as.matrix(target_hd))
+
+# 3. Evaluate densities at the source data points
+p_source_hd <- predict(kde_source_hd, x = as.matrix(source_hd))
+p_target_hd <- predict(kde_target_hd, x = as.matrix(source_hd))
+
+# 4. Compute the density ratio weights: w(x) = P_T(x) / (P_S(x) + epsilon)
+epsilon_val <- 1e-10
+weights_hd <- p_target_hd / (p_source_hd + epsilon_val)
+
+
+# Marginal densities of los
+ggplot() +
+  geom_density(aes(x = los, color = "Target(mechvent=0)", fill = "Target(mechvent=0)"), 
+               data = target_hd, alpha = 0.3, size = 1) +
+  geom_density(aes(x = los, weight = weights_hd, color = "Weighted Source(mechvent=1)", fill = "Weighted Source(mechvent=1)"), 
+               data = source_hd, alpha = 0.3, size = 1) +
+  scale_color_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  scale_fill_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  labs(title = "Marginal Densities(LOS): Weighted Source vs. Target",
+       x = "Length of Stay", y = "Density") +
+  theme_minimal()
+
+ggplot() +
+  geom_density(aes(x = age, color = "Target(mechvent=0)", fill = "Target(mechvent=0)"), 
+               data = target_hd, alpha = 0.3, size = 1) +
+  geom_density(aes(x = age, weight = weights_hd, color = "Weighted Source(mechvent=1)", fill = "Weighted Source(mechvent=1)"), 
+               data = source_hd, alpha = 0.3, size = 1) +
+  scale_color_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  scale_fill_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  labs(title = "Marginal Densities(Age): Weighted Source vs. Target",
+       x = "Length of Stay", y = "Density") +
+  theme_minimal()
+
+ggplot() +
+  geom_density(aes(x = heartrate, color = "Target(mechvent=0)", fill = "Target(mechvent=0)"), 
+               data = target_hd, alpha = 0.3, size = 1) +
+  geom_density(aes(x = heartrate, weight = weights_hd, color = "Weighted Source(mechvent=1)", fill = "Weighted Source(mechvent=1)"), 
+               data = source_hd, alpha = 0.3, size = 1) +
+  scale_color_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  scale_fill_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  labs(title = "Marginal Densities(Heart Rate): Weighted Source vs. Target",
+       x = "Length of Stay", y = "Density") +
+  theme_minimal()
+
+
+# Reduce dimension w/ PCA
+# For the source data, include the weight; for target, set weight = 1.
+source_hd <- source_hd %>% mutate(dataset = "source", weight = weights_hd)
+target_hd <- target_hd %>% mutate(dataset = "target", weight = 1)
+
+combined_hd <- bind_rows(source_hd, target_hd)
+
+# Run PCA on the three variables: age, los, and heartrate.
+pca_res <- prcomp(combined_hd[, c("age", "los", "heartrate")], scale. = TRUE)
+combined_hd <- combined_hd %>%
+  mutate(PC1 = pca_res$x[,1],
+         PC2 = pca_res$x[,2])
+
+# Plot density contours for the target distribution.
+ggplot() +
+  geom_density_2d(data = combined_hd %>% filter(dataset == "target"), 
+                    aes(x = PC1, y = PC2, color = "Target(mechvent=0)"), linetype = "solid", size = 1) +
+  # Overlay a weighted density estimate for the source.
+  stat_density_2d(data = combined_hd %>% filter(dataset == "source"), 
+                    aes(x = PC1, y = PC2, weight = weight, color = "Weighted Source(mechvent=1)"), 
+                    geom = "density_2d", linetype = "dashed", size = 1) +
+  labs(title = "PCA of Multivariate Data: Weighted Source vs. Target",
+       x = "PC1", y = "PC2") +
+  theme_minimal()
+
+```
+
 # Highlights
 
 - Separate Density Estimation was introduced only to provide intuitions for importance weighting method that this weight refers to the ratio between probability of data points follows target and source distribution $\frac{p_T(X)}{p_S(X)}$.

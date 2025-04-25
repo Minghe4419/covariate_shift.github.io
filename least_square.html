@@ -460,17 +460,17 @@ summary(fit_ulsif)</code></pre>
 ##   Kernel type: Gaussian with L2 norm distances
 ##   Number of kernels: 200
 ## 
-## Optimal sigma: 0.5043531
+## Optimal sigma: 0.4926679
 ## Optimal lambda: 0.078476
-## Optimal kernel weights: num [1:201] 0.200821 0.019025 -0.000311 0.012352 0.021278 ...
+## Optimal kernel weights: num [1:201] 0.204215 0.002072 -0.005423 -0.000126 0.004255 ...
 ##  
-## Pearson divergence between P(nu) and P(de): 0.2827
+## Pearson divergence between P(nu) and P(de): 0.2823
 ## For a two-sample homogeneity test, use &#39;summary(x, test = TRUE)&#39;.</code></pre>
 <pre class="r"><code># Predict estimated density ratio
 pred_ulsif  &lt;- predict(fit_ulsif, newdata = denominator_data$x5)
 summary(pred_ulsif)</code></pre>
 <pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-## 0.03542 0.47328 0.97416 0.98424 1.22037 3.55263</code></pre>
+## 0.04821 0.47326 0.97651 0.98397 1.21468 3.58471</code></pre>
 <pre class="r"><code># Function of true density ratio
 dbinorm &lt;- function(x, p, dif) {
   p * dnorm(x, 0, 1) + (1 - p) * dnorm(x, dif, 1)
@@ -625,7 +625,7 @@ ggplot() +
                data = source_data3, alpha = 0.3, size = 1) +
   scale_color_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
   scale_fill_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
-  labs(title = &quot;Density of Univariate Data(LOS): Weighted Source vs. Target&quot;,
+  labs(title = &quot;Marginal Densities(LOS): Weighted Source vs. Target&quot;,
        x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
   theme_minimal()</code></pre>
 <p><img src="least_square_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
@@ -636,7 +636,7 @@ ggplot() +
                data = source_data3, alpha = 0.3, size = 1) +
   scale_color_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
   scale_fill_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
-  labs(title = &quot;Density of Univariate Data(Age): Weighted Source vs. Target&quot;,
+  labs(title = &quot;Marginal Densities(Age): Weighted Source vs. Target&quot;,
        x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
   theme_minimal()</code></pre>
 <p><img src="least_square_files/figure-html/unnamed-chunk-7-2.png" width="672" /></p>
@@ -647,7 +647,7 @@ ggplot() +
                data = source_data3, alpha = 0.3, size = 1) +
   scale_color_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
   scale_fill_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
-  labs(title = &quot;Density of Univariate Data(Heart Rate): Weighted Source vs. Target&quot;,
+  labs(title = &quot;Marginal Densities(Heart Rate): Weighted Source vs. Target&quot;,
        x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
   theme_minimal()</code></pre>
 <p><img src="least_square_files/figure-html/unnamed-chunk-7-3.png" width="672" /></p>
@@ -694,6 +694,14 @@ does the weighting process perform.</p>
 </div>
 <div id="highlights" class="section level1">
 <h1>Highlights</h1>
+<ul>
+<li>Least Square Importance Fitting is implemented in
+<code>densityratio</code> R package. This package also includes Kernel
+Mean Matching, and KL Importance Estimation. <a
+href="https://jmlr.org/papers/volume10/kanamori09a/kanamori09a.pdf">Kanamori
+et all, 2009</a> proved the Least Square method(unconstrained version)
+is stable and the fastest among the methods.</li>
+</ul>
 </div>
 <div id="reference" class="section level1">
 <h1>Reference</h1>
