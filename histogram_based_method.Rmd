@@ -50,8 +50,8 @@ source_df <- data.frame(x = source_data[,1], y = source_data[,2])
 target_df <- data.frame(x = target_data[,1], y = target_data[,2])
 
 # Query point and radius
-x_query <- c(1, 1)
-r <- 1.0
+x_query <- c(1, 2)
+r <- 0.4
 
 # Compute distances
 dist_source <- sqrt(rowSums((source_data - matrix(x_query, nrow = nrow(source_data), ncol = 2, byrow = TRUE))^2))

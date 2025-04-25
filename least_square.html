@@ -16,7 +16,7 @@
 <script src="site_libs/header-attrs-2.28/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -352,6 +352,12 @@ div.tocify {
     <li>
       <a href="semi_parametric.html">Semi-parametric Method</a>
     </li>
+    <li>
+      <a href="least_square.html">Least Square Method</a>
+    </li>
+    <li>
+      <a href="domain_generalization.html">Domain Generaization</a>
+    </li>
   </ul>
 </li>
 <li>
@@ -421,6 +427,8 @@ kernelized version w/ ridge penalty term as well.</p>
 </div>
 <div id="implementation" class="section level1">
 <h1>Implementation</h1>
+<p>We first implement how <code>densityratio</code> package illustrate
+their density estimation methods using built in toy example:</p>
 <pre class="r"><code># To install &#39;densityratio&#39; package, we need libraries:
 library(osqp)
 library(pbapply)
@@ -452,17 +460,17 @@ summary(fit_ulsif)</code></pre>
 ##   Kernel type: Gaussian with L2 norm distances
 ##   Number of kernels: 200
 ## 
-## Optimal sigma: 0.4787585
+## Optimal sigma: 0.5043531
 ## Optimal lambda: 0.078476
-## Optimal kernel weights: num [1:201] 0.24819 -0.00432 0.00207 -0.00767 -0.00632 ...
+## Optimal kernel weights: num [1:201] 0.200821 0.019025 -0.000311 0.012352 0.021278 ...
 ##  
-## Pearson divergence between P(nu) and P(de): 0.2769
+## Pearson divergence between P(nu) and P(de): 0.2827
 ## For a two-sample homogeneity test, use &#39;summary(x, test = TRUE)&#39;.</code></pre>
 <pre class="r"><code># Predict estimated density ratio
 pred_ulsif  &lt;- predict(fit_ulsif, newdata = denominator_data$x5)
 summary(pred_ulsif)</code></pre>
 <pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-## 0.03269 0.47268 0.96918 0.98052 1.22219 3.39784</code></pre>
+## 0.03542 0.47328 0.97416 0.98424 1.22037 3.55263</code></pre>
 <pre class="r"><code># Function of true density ratio
 dbinorm &lt;- function(x, p, dif) {
   p * dnorm(x, 0, 1) + (1 - p) * dnorm(x, dif, 1)
@@ -492,7 +500,197 @@ ggplot() +
                 fun = dratio_ulsif, 
                 args = list(p = 0.4, dif = 3, mu = 3, sd = 2),
                 linewidth = 1)</code></pre>
-<p><img src="least_square_files/figure-html/unnamed-chunk-2-3.png" width="672" /></p>
+<p><img src="least_square_files/figure-html/unnamed-chunk-2-3.png" width="672" />
+Here we can see the R package include built-in data:
+<code>numerator_data</code>, <code>denominator_data</code> containing
+categorical and numerical covariates.</p>
+<pre class="r"><code>summary(numerator_data)</code></pre>
+<pre><code>##  x1       x2            x3                 x4                x5         
+##  A:351   G1:479   Min.   :-2.48086   Min.   :-2.5217   Min.   :-3.1154  
+##  B:339   G2:521   1st Qu.:-0.07656   1st Qu.:-0.4122   1st Qu.: 0.2801  
+##  C:310            Median : 0.59427   Median : 0.2261   Median : 2.0378  
+##                   Mean   : 0.60300   Mean   : 0.2395   Mean   : 1.7486  
+##                   3rd Qu.: 1.28973   3rd Qu.: 0.8779   3rd Qu.: 3.2017  
+##                   Max.   : 3.82854   Max.   : 3.1983   Max.   : 5.7656</code></pre>
+<pre class="r"><code>summary(denominator_data)</code></pre>
+<pre><code>##  x1       x2            x3                x4                x5        
+##  A:252   G1:486   Min.   :-3.7930   Min.   :-2.4593   Min.   :-3.483  
+##  B:232   G2:514   1st Qu.:-0.7724   1st Qu.: 0.2639   1st Qu.: 1.563  
+##  C:516            Median : 0.1076   Median : 0.9766   Median : 3.101  
+##                   Mean   : 0.1492   Mean   : 0.9718   Mean   : 3.042  
+##                   3rd Qu.: 1.0571   3rd Qu.: 1.6476   3rd Qu.: 4.460  
+##                   Max.   : 4.8322   Max.   : 4.2598   Max.   : 8.369</code></pre>
+<pre class="r"><code>fit_all &lt;- ulsif(
+  df_numerator = numerator_data,
+  df_denominator = denominator_data
+)
+
+res &lt;- summary(fit_all, test = TRUE, parallel = TRUE)</code></pre>
+<p>Least square method has constrained and unconstrained versions, and
+<a
+href="https://jmlr.org/papers/volume10/kanamori09a/kanamori09a.pdf">Kanamori
+et al, 2019</a> indicates the unconstrained tends to perform better(more
+stable estimation under certain condition). That’s why the method is
+named <code>ulsif</code> here: unconstrained Least Sqaure Importance
+Fitting. But if we want our weights to be positive for reasons like
+plotting weighted source densities, we can truncated the alpha as below
+to make sure the estimated weights are stricktly positive.</p>
+<pre class="r"><code>## truncated alpha to prevent negative weights, but unconstrained performs better
+
+# alpha_raw &lt;- fit_ulsif$alpha  # vector of alpha coefficients
+# alpha_trunc &lt;- pmax(alpha_raw, 0)
+# fit_ulsif$alpha &lt;- alpha_trunc</code></pre>
+<div id="mimic-iii-data-example" class="section level2">
+<h2>MIMIC-III Data Example</h2>
+<pre class="r"><code>dat &lt;- read.csv(&quot;./data/data_forSDE.csv&quot;)
+library(tidyr)
+library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code># univariate data
+source_data1 &lt;- dat %&gt;%
+  filter(mechvent == 1, los&lt;150) %&gt;%
+  dplyr::select(los) %&gt;%
+  drop_na()
+
+target_data1 &lt;- dat %&gt;%
+  filter(mechvent == 0,los&lt;150) %&gt;%
+  dplyr::select(los) %&gt;%
+  drop_na()
+
+# multivariate data
+source_data3 &lt;- dat %&gt;%
+  filter(mechvent == 1,los&lt;150) %&gt;%
+  dplyr::select(los, heartrate, age) %&gt;%
+  drop_na()
+
+target_data3 &lt;- dat %&gt;%
+  filter(mechvent == 0,los&lt;150) %&gt;%
+  dplyr::select(los, heartrate, age) %&gt;%
+  drop_na()
+
+fit_ulsif1 &lt;- ulsif(
+  df_numerator = target_data1, 
+  df_denominator = source_data1,
+  sigma = 0.1
+)
+
+fit_ulsif3 &lt;- ulsif(
+  df_numerator = target_data3, 
+  df_denominator = source_data3,
+  sigma = 0.5
+)
+
+pred1 &lt;- predict(fit_ulsif1, newdata = source_data1)
+pred3 &lt;- predict(fit_ulsif3, newdata = source_data3)</code></pre>
+<div id="visualizations" class="section level3">
+<h3>Visualizations</h3>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(x = los, color = &quot;Source: mechvent=1&quot;), data = source_data1, size = 1) +
+  geom_density(aes(x = los, color = &quot;Target: mechvent=0&quot;), data = target_data1, size = 1) +
+  labs(title = &quot;LOS Distribution Shift by MechVent Status&quot;, x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
+  scale_color_manual(values = c(&quot;Source: mechvent=1&quot; = &quot;blue&quot;, &quot;Target: mechvent=0&quot; = &quot;red&quot;)) +
+  theme_minimal()</code></pre>
+<pre><code>## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+## generated.</code></pre>
+<p><img src="least_square_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(x = los, weight = pred1, color = &quot;Weighted Source (mechvent=1)&quot;), data = source_data1, size = 1) +
+  geom_density(aes(x = los, color = &quot;Target (mechvent=0)&quot;), data = target_data1, size = 1) +
+  scale_color_manual(values = c(&quot;Weighted Source (mechvent=1)&quot; = &quot;blue&quot;, &quot;Target (mechvent=0)&quot; = &quot;red&quot;)) +
+  labs(title = &quot;LOS: Weighted Source vs. Target (MechVent)&quot;, x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
+  theme_minimal()</code></pre>
+<p><img src="least_square_files/figure-html/unnamed-chunk-6-2.png" width="672" />
+Using multivariate data, the weights estimated by Least Square method
+make marginal weighted densities (e.g., los, age, heartrate) closely
+match the target distribution. However, the PCA plots still looks messy.
+(You can compare these plots with <a
+href="separate_density_estimation.html">Separate Density
+Estimation</a>.) The possible reason could be PCA is based on covariance
+structure, not distribution closeness.</p>
+<pre class="r"><code># Marginal densities of los
+ggplot() +
+  geom_density(aes(x = los, color = &quot;Target(mechvent=0)&quot;, fill = &quot;Target(mechvent=0)&quot;), 
+               data = target_data3, alpha = 0.3, size = 1) +
+  geom_density(aes(x = los, weight = pred3, color = &quot;Weighted Source(mechvent=1)&quot;, fill = &quot;Weighted Source(mechvent=1)&quot;), 
+               data = source_data3, alpha = 0.3, size = 1) +
+  scale_color_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
+  scale_fill_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
+  labs(title = &quot;Density of Univariate Data(LOS): Weighted Source vs. Target&quot;,
+       x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
+  theme_minimal()</code></pre>
+<p><img src="least_square_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(x = age, color = &quot;Target(mechvent=0)&quot;, fill = &quot;Target(mechvent=0)&quot;), 
+               data = target_data3, alpha = 0.3, size = 1) +
+  geom_density(aes(x = age, weight = pred3, color = &quot;Weighted Source(mechvent=1)&quot;, fill = &quot;Weighted Source(mechvent=1)&quot;), 
+               data = source_data3, alpha = 0.3, size = 1) +
+  scale_color_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
+  scale_fill_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
+  labs(title = &quot;Density of Univariate Data(Age): Weighted Source vs. Target&quot;,
+       x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
+  theme_minimal()</code></pre>
+<p><img src="least_square_files/figure-html/unnamed-chunk-7-2.png" width="672" /></p>
+<pre class="r"><code>ggplot() +
+  geom_density(aes(x = heartrate, color = &quot;Target(mechvent=0)&quot;, fill = &quot;Target(mechvent=0)&quot;), 
+               data = target_data3, alpha = 0.3, size = 1) +
+  geom_density(aes(x = heartrate, weight = pred3, color = &quot;Weighted Source(mechvent=1)&quot;, fill = &quot;Weighted Source(mechvent=1)&quot;), 
+               data = source_data3, alpha = 0.3, size = 1) +
+  scale_color_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
+  scale_fill_manual(name = &quot;Dataset&quot;, values = c(&quot;Weighted Source(mechvent=1)&quot; = &quot;blue&quot;, &quot;Target(mechvent=0)&quot; = &quot;red&quot;)) +
+  labs(title = &quot;Density of Univariate Data(Heart Rate): Weighted Source vs. Target&quot;,
+       x = &quot;Length of Stay&quot;, y = &quot;Density&quot;) +
+  theme_minimal()</code></pre>
+<p><img src="least_square_files/figure-html/unnamed-chunk-7-3.png" width="672" /></p>
+<pre class="r"><code># Reduce dimension w/ PCA
+# For the source data, include the weight; for target, set weight = 1.
+source_data3 &lt;- source_data3 %&gt;% mutate(dataset = &quot;source&quot;, weight = pred3)
+target_data3 &lt;- target_data3 %&gt;% mutate(dataset = &quot;target&quot;, weight = 1)
+
+combined_data3 &lt;- bind_rows(source_data3, target_data3)
+
+# Run PCA on the three variables: age, los, and heartrate.
+pca_res &lt;- prcomp(combined_data3[, c(&quot;age&quot;, &quot;los&quot;, &quot;heartrate&quot;)], scale. = TRUE)
+combined_data3 &lt;- combined_data3 %&gt;%
+  mutate(PC1 = pca_res$x[,1],
+         PC2 = pca_res$x[,2])
+
+# Plot density contours for the target distribution.
+ggplot() +
+  geom_density_2d(data = combined_data3 %&gt;% filter(dataset == &quot;target&quot;), 
+                    aes(x = PC1, y = PC2, color = &quot;Target(mechvent=0)&quot;), linetype = &quot;solid&quot;, size = 1) +
+  # Overlay a weighted density estimate for the source.
+  stat_density_2d(data = combined_data3 %&gt;% filter(dataset == &quot;source&quot;), 
+                    aes(x = PC1, y = PC2, weight = weight, color = &quot;Weighted Source(mechvent=1)&quot;), 
+                    geom = &quot;density_2d&quot;, linetype = &quot;dashed&quot;, size = 1) +
+  labs(title = &quot;PCA of Multivariate Data: Weighted Source vs. Target&quot;,
+       x = &quot;PC1&quot;, y = &quot;PC2&quot;) +
+  theme_minimal()</code></pre>
+<pre><code>## Warning in stat_density_2d(data = combined_data3 %&gt;% filter(dataset ==
+## &quot;source&quot;), : Ignoring unknown aesthetics: weight</code></pre>
+<pre><code>## Warning: The following aesthetics were dropped during statistical transformation:
+## weight.
+## ℹ This can happen when ggplot fails to infer the correct grouping structure in
+##   the data.
+## ℹ Did you forget to specify a `group` aesthetic or to convert a numerical
+##   variable into a factor?</code></pre>
+<p><img src="least_square_files/figure-html/unnamed-chunk-7-4.png" width="672" />
+<a href="https://jmlr.csail.mit.edu/papers/v13/gretton12a.html">Maximum
+mean discrepancy (MMD)</a>, a method measures the distance between two
+distributions by comparing the mean embeddings of their samples in a
+Reproducing Kernel Hilbert Space (RKHS), can be useful in measuring how
+does the weighting process perform.</p>
+</div>
+</div>
 </div>
 <div id="highlights" class="section level1">
 <h1>Highlights</h1>

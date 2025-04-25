@@ -34,6 +34,8 @@ By [Kanamori et al. (2009)](), unconstrained method performed better than the co
 
 # Implementation
 
+We first implement how `densityratio` package illustrate their density estimation methods using built in toy example:
+
 ```{r}
 # To install 'densityratio' package, we need libraries:
 library(osqp)
@@ -89,6 +91,168 @@ ggplot() +
                 args = list(p = 0.4, dif = 3, mu = 3, sd = 2),
                 linewidth = 1)
   
+```
+Here we can see the R package include built-in data: `numerator_data`, `denominator_data` containing categorical and numerical covariates. 
+
+```{r cache=TRUE}
+summary(numerator_data)
+summary(denominator_data)
+
+fit_all <- ulsif(
+  df_numerator = numerator_data,
+  df_denominator = denominator_data
+)
+
+res <- summary(fit_all, test = TRUE, parallel = TRUE)
+```
+Least square method has constrained and unconstrained versions, and [Kanamori et al, 2019](https://jmlr.org/papers/volume10/kanamori09a/kanamori09a.pdf) indicates the unconstrained tends to perform better(more stable estimation under certain condition). That's why the method is named `ulsif` here: unconstrained Least Sqaure Importance Fitting. But if we want our weights to be positive for reasons like plotting weighted source densities, we can truncated the alpha as below to make sure the estimated weights are stricktly positive.
+
+```{r}
+## truncated alpha to prevent negative weights, but unconstrained performs better
+
+# alpha_raw <- fit_ulsif$alpha  # vector of alpha coefficients
+# alpha_trunc <- pmax(alpha_raw, 0)
+# fit_ulsif$alpha <- alpha_trunc
+```
+
+
+## MIMIC-III Data Example
+
+```{r}
+dat <- read.csv("./data/data_forSDE.csv")
+library(tidyr)
+library(dplyr)
+
+
+# univariate data
+source_data1 <- dat %>%
+  filter(mechvent == 1, los<150) %>%
+  dplyr::select(los) %>%
+  drop_na()
+
+target_data1 <- dat %>%
+  filter(mechvent == 0,los<150) %>%
+  dplyr::select(los) %>%
+  drop_na()
+
+# multivariate data
+source_data3 <- dat %>%
+  filter(mechvent == 1,los<150) %>%
+  dplyr::select(los, heartrate, age) %>%
+  drop_na()
+
+target_data3 <- dat %>%
+  filter(mechvent == 0,los<150) %>%
+  dplyr::select(los, heartrate, age) %>%
+  drop_na()
+
+fit_ulsif1 <- ulsif(
+  df_numerator = target_data1, 
+  df_denominator = source_data1,
+  sigma = 0.1
+)
+
+fit_ulsif3 <- ulsif(
+  df_numerator = target_data3, 
+  df_denominator = source_data3,
+  sigma = 0.5
+)
+
+pred1 <- predict(fit_ulsif1, newdata = source_data1)
+pred3 <- predict(fit_ulsif3, newdata = source_data3)
+
+```
+
+### Visualizations
+
+```{r}
+ggplot() +
+  geom_density(aes(x = los, color = "Source: mechvent=1"), data = source_data1, size = 1) +
+  geom_density(aes(x = los, color = "Target: mechvent=0"), data = target_data1, size = 1) +
+  labs(title = "LOS Distribution Shift by MechVent Status", x = "Length of Stay", y = "Density") +
+  scale_color_manual(values = c("Source: mechvent=1" = "blue", "Target: mechvent=0" = "red")) +
+  theme_minimal()
+
+
+ggplot() +
+  geom_density(aes(x = los, weight = pred1, color = "Weighted Source (mechvent=1)"), data = source_data1, size = 1) +
+  geom_density(aes(x = los, color = "Target (mechvent=0)"), data = target_data1, size = 1) +
+  scale_color_manual(values = c("Weighted Source (mechvent=1)" = "blue", "Target (mechvent=0)" = "red")) +
+  labs(title = "LOS: Weighted Source vs. Target (MechVent)", x = "Length of Stay", y = "Density") +
+  theme_minimal()
+
+```
+Using multivariate data, the weights estimated by Least Square method make marginal weighted densities (e.g., los, age, heartrate) closely match the target distribution. However, the PCA plots still looks messy. (You can compare these plots with [Separate Density Estimation](separate_density_estimation.html).) The possible reason could be PCA is based on covariance structure, not distribution closeness.
+
+```{r}
+# Marginal densities of los
+ggplot() +
+  geom_density(aes(x = los, color = "Target(mechvent=0)", fill = "Target(mechvent=0)"), 
+               data = target_data3, alpha = 0.3, size = 1) +
+  geom_density(aes(x = los, weight = pred3, color = "Weighted Source(mechvent=1)", fill = "Weighted Source(mechvent=1)"), 
+               data = source_data3, alpha = 0.3, size = 1) +
+  scale_color_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  scale_fill_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  labs(title = "Density of Univariate Data(LOS): Weighted Source vs. Target",
+       x = "Length of Stay", y = "Density") +
+  theme_minimal()
+
+ggplot() +
+  geom_density(aes(x = age, color = "Target(mechvent=0)", fill = "Target(mechvent=0)"), 
+               data = target_data3, alpha = 0.3, size = 1) +
+  geom_density(aes(x = age, weight = pred3, color = "Weighted Source(mechvent=1)", fill = "Weighted Source(mechvent=1)"), 
+               data = source_data3, alpha = 0.3, size = 1) +
+  scale_color_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  scale_fill_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  labs(title = "Density of Univariate Data(Age): Weighted Source vs. Target",
+       x = "Length of Stay", y = "Density") +
+  theme_minimal()
+
+
+ggplot() +
+  geom_density(aes(x = heartrate, color = "Target(mechvent=0)", fill = "Target(mechvent=0)"), 
+               data = target_data3, alpha = 0.3, size = 1) +
+  geom_density(aes(x = heartrate, weight = pred3, color = "Weighted Source(mechvent=1)", fill = "Weighted Source(mechvent=1)"), 
+               data = source_data3, alpha = 0.3, size = 1) +
+  scale_color_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  scale_fill_manual(name = "Dataset", values = c("Weighted Source(mechvent=1)" = "blue", "Target(mechvent=0)" = "red")) +
+  labs(title = "Density of Univariate Data(Heart Rate): Weighted Source vs. Target",
+       x = "Length of Stay", y = "Density") +
+  theme_minimal()
+
+
+
+# Reduce dimension w/ PCA
+# For the source data, include the weight; for target, set weight = 1.
+source_data3 <- source_data3 %>% mutate(dataset = "source", weight = pred3)
+target_data3 <- target_data3 %>% mutate(dataset = "target", weight = 1)
+
+combined_data3 <- bind_rows(source_data3, target_data3)
+
+# Run PCA on the three variables: age, los, and heartrate.
+pca_res <- prcomp(combined_data3[, c("age", "los", "heartrate")], scale. = TRUE)
+combined_data3 <- combined_data3 %>%
+  mutate(PC1 = pca_res$x[,1],
+         PC2 = pca_res$x[,2])
+
+# Plot density contours for the target distribution.
+ggplot() +
+  geom_density_2d(data = combined_data3 %>% filter(dataset == "target"), 
+                    aes(x = PC1, y = PC2, color = "Target(mechvent=0)"), linetype = "solid", size = 1) +
+  # Overlay a weighted density estimate for the source.
+  stat_density_2d(data = combined_data3 %>% filter(dataset == "source"), 
+                    aes(x = PC1, y = PC2, weight = weight, color = "Weighted Source(mechvent=1)"), 
+                    geom = "density_2d", linetype = "dashed", size = 1) +
+  labs(title = "PCA of Multivariate Data: Weighted Source vs. Target",
+       x = "PC1", y = "PC2") +
+  theme_minimal()
+
+
+```
+[Maximum mean discrepancy (MMD)](https://jmlr.csail.mit.edu/papers/v13/gretton12a.html), a method measures the distance between two distributions by comparing the mean embeddings of their samples in a Reproducing Kernel Hilbert Space (RKHS), can be useful in measuring how does the weighting process perform.
+
+```{r}
+
 ```
 
 # Highlights
